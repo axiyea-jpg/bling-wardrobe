@@ -132,43 +132,24 @@ const wardrobeRenderSelectToggle=render;
 render=function(){wardrobeRenderSelectToggle();const selectButton=$('#selectPage');if(selectButton){const visible=$$('#itemGrid [data-select-item]').map(b=>+b.dataset.selectItem);selectButton.textContent=visible.length&&visible.every(i=>selectedItems.has(i))?'取消全选':'全选本页'}};
 render();
 
-/* Real GLB humanoid body visualizer. CC0 model: UMRAM-Bilkent/supine-human-model */
+/* Open-source BodyApps female morph-target visualizer (LGPL-3.0). */
 openBodyEditor3D=function(){
  let saved;try{saved=JSON.parse(localStorage.getItem('bling-body'))}catch(e){}
  const d=Object.assign({height:162,weight:52,bust:84,waist:66,hip:92},saved||{});
- $('#subTitle').textContent='3D 身体形态';
+ $('#subTitle').textContent='女性 3D 身体形态';
  const metrics=[['height','身高','cm',145,190,1],['weight','体重','kg',38,110,1],['bust','胸围','cm',70,125,1],['waist','腰围','cm',52,115,1],['hip','臀围','cm',75,135,1]];
- $('#subContent').innerHTML='<div class="body-visualizer"><div class="human-viewport"><div id="humanLoading" class="human-loading">正在加载人体模型…</div><div id="human3d"></div><div class="human-status">拖动旋转 · 双指/滚轮缩放 · 静止时自动旋转</div></div><div class="metric-panel">'+metrics.map(m=>'<div class="metric-control"><header><b>'+m[1]+'</b><span class="metric-value"><input id="num-'+m[0]+'" type="number" min="'+m[3]+'" max="'+m[4]+'" value="'+d[m[0]]+'"><em>'+m[2]+'</em></span></header><input id="range-'+m[0]+'" type="range" min="'+m[3]+'" max="'+m[4]+'" step="'+m[5]+'" value="'+d[m[0]]+'"></div>').join('')+'<button class="primary" id="saveHumanBody">保存身体数据</button><p class="visualizer-tip">模型用于穿搭比例预览，不用于医学判断。身体数据只保存在当前设备。</p></div></div>';
+ $('#subContent').innerHTML='<div class="body-visualizer"><div class="human-viewport"><iframe id="human3dFrame" title="可旋转女性人体模型" src="bodyapps/female.html" style="width:100%;height:100%;border:0;display:block" allow="fullscreen"></iframe><div class="human-status">拖动旋转 · 双指/滚轮缩放 · 静止时自动旋转</div></div><div class="metric-panel">'+metrics.map(m=>'<div class="metric-control"><header><b>'+m[1]+'</b><span class="metric-value"><input id="num-'+m[0]+'" type="number" min="'+m[3]+'" max="'+m[4]+'" value="'+d[m[0]]+'"><em>'+m[2]+'</em></span></header><input id="range-'+m[0]+'" type="range" min="'+m[3]+'" max="'+m[4]+'" step="'+m[5]+'" value="'+d[m[0]]+'"></div>').join('')+'<div class="rotate-row"><button id="turnBodyLeft" aria-label="向左旋转">↶</button><input id="bodyModelAngle" type="range" min="0" max="360" value="0" aria-label="旋转角度"><button id="turnBodyRight" aria-label="向右旋转">↷</button></div><button class="primary" id="saveHumanBody">保存身体数据</button><p class="visualizer-tip">完整女性人体网格会随尺寸平滑变化；仅用于穿搭比例预览，不作医学判断。模型：BodyApps（LGPL-3.0）。</p></div></div>';
  $('#overlay').classList.add('show');
- const host=$('#human3d'),loading=$('#humanLoading');
- if(!window.THREE||!THREE.GLTFLoader||!THREE.OrbitControls){loading.textContent='三维组件加载失败，请刷新页面重试';return}
- const scene=new THREE.Scene(),camera=new THREE.PerspectiveCamera(28,host.clientWidth/host.clientHeight,.01,100),renderer=new THREE.WebGLRenderer({alpha:true,antialias:true,powerPreference:'high-performance'});
- renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.setSize(host.clientWidth,host.clientHeight);renderer.outputEncoding=THREE.sRGBEncoding;renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;host.appendChild(renderer.domElement);
- camera.position.set(0,.05,3.15);
- scene.add(new THREE.HemisphereLight(0xd9ecff,0x192235,1.35));
- const key=new THREE.DirectionalLight(0xffffff,2.5);key.position.set(3,4,4);key.castShadow=true;scene.add(key);
- const fill=new THREE.DirectionalLight(0x76baff,1.25);fill.position.set(-3,1,2);scene.add(fill);
- const rim=new THREE.DirectionalLight(0x83aaff,1.8);rim.position.set(1,3,-4);scene.add(rim);
- const controls=new THREE.OrbitControls(camera,renderer.domElement);controls.enableDamping=true;controls.dampingFactor=.07;controls.enablePan=false;controls.minDistance=1.65;controls.maxDistance=5;controls.autoRotate=true;controls.autoRotateSpeed=.65;controls.target.set(0,0,0);
- let root=null,meshData=[];
- const read=()=>Object.fromEntries(metrics.map(m=>[m[0],+$('#num-'+m[0]).value||d[m[0]]]));
- const gaussian=(v,c,w)=>Math.exp(-Math.pow((v-c)/w,2));
- function deform(){
-   if(!root)return;const v=read(),heightScale=v.height/170,weightScale=1+(v.weight-62)/360;
-   root.scale.set(weightScale,heightScale,weightScale);
-   meshData.forEach(({mesh,base,minY,maxY})=>{const p=mesh.geometry.attributes.position,a=p.array,span=Math.max(.0001,maxY-minY);for(let i=0;i<a.length;i+=3){const t=(base[i+1]-minY)/span;const chest=gaussian(t,.64,.115)*(v.bust-88)/105;const waist=gaussian(t,.49,.095)*(v.waist-72)/115;const hips=gaussian(t,.38,.115)*(v.hip-94)/110;const region=1+chest*.72+waist*.62+hips*.68;a[i]=base[i]*region;a[i+1]=base[i+1];a[i+2]=base[i+2]*region}p.needsUpdate=true;mesh.geometry.computeVertexNormals()});
- }
- const clay=new THREE.MeshPhysicalMaterial({color:0x82bdf1,roughness:.42,metalness:.02,clearcoat:.2,clearcoatRoughness:.38,sheen:.22,sheenColor:new THREE.Color(0xcde8ff),side:THREE.DoubleSide});
- new THREE.GLTFLoader().load('assets/human.glb',gltf=>{
-   root=gltf.scene;root.traverse(o=>{if(o.isMesh){o.material=clay;o.castShadow=true;o.receiveShadow=true;const pos=o.geometry.attributes.position;if(pos){o.geometry.computeBoundingBox();const bb=o.geometry.boundingBox;meshData.push({mesh:o,base:new Float32Array(pos.array),minY:bb.min.y,maxY:bb.max.y})}}});
-   const box=new THREE.Box3().setFromObject(root),size=box.getSize(new THREE.Vector3()),center=box.getCenter(new THREE.Vector3());const normal=2.45/Math.max(size.y,.001);root.scale.setScalar(normal);root.position.copy(center).multiplyScalar(-normal);root.userData.baseScale=normal;scene.add(root);
-   const ground=new THREE.Mesh(new THREE.CircleGeometry(1.05,64),new THREE.ShadowMaterial({color:0x000000,opacity:.28}));ground.rotation.x=-Math.PI/2;ground.position.y=-1.27;ground.receiveShadow=true;scene.add(ground);
-   const v=read(),hs=v.height/170,ws=1+(v.weight-62)/360;root.scale.set(normal*ws,normal*hs,normal*ws);deform=(()=>{const original=deform;return function(){const values=read(),h=values.height/170,w=1+(values.weight-62)/360;root.scale.set(normal*w,normal*h,normal*w);meshData.forEach(({mesh,base,minY,maxY})=>{const p=mesh.geometry.attributes.position,a=p.array,span=Math.max(.0001,maxY-minY);for(let i=0;i<a.length;i+=3){const t=(base[i+1]-minY)/span,region=1+gaussian(t,.64,.115)*(values.bust-88)/145+gaussian(t,.49,.095)*(values.waist-72)/155+gaussian(t,.38,.115)*(values.hip-94)/145;a[i]=base[i]*region;a[i+1]=base[i+1];a[i+2]=base[i+2]*region}p.needsUpdate=true;mesh.geometry.computeVertexNormals()})}})();deform();scene.updateMatrixWorld(true);const fittedBox=new THREE.Box3().setFromObject(root),fittedCenter=fittedBox.getCenter(new THREE.Vector3()),fittedSize=fittedBox.getSize(new THREE.Vector3()),fit=Math.max(fittedSize.x,fittedSize.y,fittedSize.z);controls.target.copy(fittedCenter);camera.position.set(fittedCenter.x,fittedCenter.y,fittedCenter.z+fit*1.75);camera.near=Math.max(.001,fit/100);camera.far=fit*20;camera.updateProjectionMatrix();controls.minDistance=fit*.7;controls.maxDistance=fit*4;controls.update();loading.hidden=true;
- },undefined,()=>{loading.textContent='人体模型加载失败，请检查网络后刷新'});
- metrics.forEach(m=>{const range=$('#range-'+m[0]),num=$('#num-'+m[0]);range.oninput=()=>{num.value=range.value;deform()};num.oninput=()=>{range.value=num.value;deform()}});
- $('#saveHumanBody').onclick=()=>{localStorage.setItem('bling-body',JSON.stringify(read()));toast('身体数据已保存 ✦')};
- let last=performance.now();const animate=()=>{if(!host.isConnected){renderer.dispose();return}requestAnimationFrame(animate);controls.update();renderer.render(scene,camera);last=performance.now()};animate();
- const resize=()=>{if(!host.isConnected)return;camera.aspect=host.clientWidth/host.clientHeight;camera.updateProjectionMatrix();renderer.setSize(host.clientWidth,host.clientHeight)};new ResizeObserver(resize).observe(host);
+ const frame=$('#human3dFrame');
+ const read=()=>Object.fromEntries(metrics.map(m=>[m[0],Math.max(m[3],Math.min(m[4],+$('#num-'+m[0]).value||d[m[0]]))]));
+ const send=()=>frame.contentWindow?.postMessage({type:'bodyapps-update',values:read()},'*');
+ window.addEventListener('message',function ready(e){if(e.source===frame.contentWindow&&e.data?.type==='bodyapps-ready'){send();window.removeEventListener('message',ready)}});
+ frame.addEventListener('load',()=>setTimeout(send,120));
+ metrics.forEach(m=>{const range=$('#range-'+m[0]),num=$('#num-'+m[0]);range.oninput=()=>{num.value=range.value;send()};num.oninput=()=>{range.value=num.value;send()}});
+ let angle=0;const setAngle=v=>{angle=(v+360)%360;$('#bodyModelAngle').value=angle;frame.contentWindow?.postMessage({type:'bodyapps-angle',angle},'*')};
+ $('#bodyModelAngle').oninput=e=>setAngle(+e.target.value);
+ $('#turnBodyLeft').onclick=()=>setAngle(angle-30);$('#turnBodyRight').onclick=()=>setAngle(angle+30);
+ $('#saveHumanBody').onclick=()=>{localStorage.setItem('bling-body',JSON.stringify(read()));toast('身体数据已保存，模型会记住当前比例 ✦')};
 };
 })();
 </script></body></html>
