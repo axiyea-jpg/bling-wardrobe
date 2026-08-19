@@ -777,7 +777,7 @@ function apply(){
  values[15]=map(w,38,110,26,44);
  for(var i=0;i<names.length;i++)mesh.morphTargetInfluences[i]=(values[i]-mid[i])/(high[i]-low[i]);
 }
-new THREE.JSONLoader().load('female.js?v=bodyapps1',function(geometry){
+new THREE.JSONLoader().load('https://raw.githubusercontent.com/OpnTec/bodyapps-viz/master/models/skinned/UCS/female.js',function(geometry){
  geometry.computeBoundingBox();geometry.computeVertexNormals();
  var material=new THREE.MeshPhongMaterial({color:0x8fc7f3,ambient:0x263d58,specular:0xbddfff,shininess:22,morphTargets:true,side:THREE.DoubleSide});
  mesh=new THREE.Mesh(geometry,material);root.add(mesh);root.scale.set(70,70,70);
