@@ -184,38 +184,33 @@ document.addEventListener('click',e=>{const b=e.target.closest('button,[data-go]
 $('#back').onclick=()=>$('#overlay').classList.remove('show');$('#closeModal').onclick=()=>$('#modal').classList.remove('show');$('#modal').onclick=e=>{if(e.target.id==='modal')$('#modal').classList.remove('show')};$('#search').oninput=render;$$('[data-cat]').forEach(b=>b.onclick=()=>{category=b.dataset.cat;$$('[data-cat]').forEach(x=>x.classList.remove('on'));b.classList.add('on');render()});$('#generate').onclick=()=>{toast('正在翻翻你的衣橱…');setTimeout(()=>{$('#results').hidden=false;toast('三套穿搭生成好了 ✦')},800)};$('#analyze').onclick=()=>toast($('#ideaLink').value?'已提取：日系、低饱和、垂感 ✦':'先粘贴一条灵感链接呀');$('#modalBody').addEventListener('click',e=>{if(e.target.closest('#importBtn')){const v=$('#productLink')?.value.trim();if(!v)return toast('先粘贴一条商品链接呀');items.push(['新导入的垂感衬衫','上衣','p1']);render();$('#modal').classList.remove('show');toast('已经放进你的衣橱 ✦')}});render();
 const cssUrl=n=>{const v=getComputedStyle(document.documentElement).getPropertyValue(n).trim(),m=v.match(/^url\(["']?(.*?)["']?\)$/);return m?m[1]:''};const logoVar=getComputedStyle(document.documentElement).getPropertyValue('--logo-img').trim();const logoMatch=logoVar.match(/^url\(["']?(.*?)["']?\)$/);if(logoMatch)$$('img[src="assets/logo.jpg"]').forEach(img=>img.src=logoMatch[1]);
 const looks=[{title:'氛围出片',copy:'柔和粉杏<br>显高又有气质'},{title:'轻松舒适',copy:'清爽蓝白<br>适合久坐通勤'},{title:'日常稳妥',copy:'低饱和层次<br>温柔又耐看'}];let li=0;const showLook=i=>{li=i%3;$('#lookNo').textContent='LOOK 0'+(li+1);$('#lookTitle').textContent=looks[li].title;$('#lookCopy').innerHTML=looks[li].copy;$$('[data-look]').forEach((d,j)=>d.classList.toggle('on',j===li))};$$('[data-look]').forEach((d,i)=>d.onclick=e=>{e.stopPropagation();showLook(i)});setInterval(()=>showLook(li+1),4200);showLook(0)
-async function showLocatedWeather(latitude,longitude,cityHint,approx){
- const temp=$('#weatherTemp'),city=$('#weatherCity');
- try{
-  const weather=await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,weather_code&timezone=auto`).then(r=>{if(!r.ok)throw Error('weather');return r.json()});
-  const value=weather.current&&weather.current.temperature_2m;
-  if(Number.isFinite(value))temp.textContent='⌖ '+Math.round(value)+'°';
-  city.textContent=(cityHint||'当前位置')+(approx?' · 约':'');
-  return true
- }catch(e){city.textContent=(cityHint||'已定位')+(approx?' · 约':'');toast('位置已获取，天气服务暂时不可用');return false}
+function showLocatedWeather(latitude,longitude,cityHint,approx){
+ var temp=$('#weatherTemp'),city=$('#weatherCity');
+ fetch('https://api.open-meteo.com/v1/forecast?latitude='+latitude+'&longitude='+longitude+'&current=temperature_2m,weather_code&timezone=auto')
+  .then(function(r){if(!r.ok)throw Error('weather');return r.json()})
+  .then(function(data){var value=data.current&&data.current.temperature_2m;if(typeof value==='number')temp.textContent='⌖ '+Math.round(value)+'°';city.textContent=(cityHint||'当前位置')+(approx?' · 约':'')})
+  .catch(function(){city.textContent=(cityHint||'已定位')+(approx?' · 约':'');toast('位置已获取，天气服务暂时不可用')})
 }
-async function locateByNetwork(){
- const city=$('#weatherCity');city.textContent='正在估算位置…';
- try{
-  const ip=await fetch('https://ipwho.is/?lang=zh').then(r=>{if(!r.ok)throw Error('ip');return r.json()});
-  if(ip.success===false||!Number.isFinite(ip.latitude)||!Number.isFinite(ip.longitude))throw Error('ip');
-  await showLocatedWeather(ip.latitude,ip.longitude,ip.city||ip.region||ip.country,true);
-  toast('已使用网络位置；允许精确定位可提高准确度')
- }catch(e){city.textContent='定位失败，点击重试';toast('暂时无法获取位置，请检查网络或浏览器权限')}
+function locateByNetwork(done){
+ var city=$('#weatherCity');city.textContent='正在估算位置…';
+ fetch('https://ipwho.is/?lang=zh').then(function(r){if(!r.ok)throw Error('ip');return r.json()}).then(function(ip){
+  if(ip.success===false||typeof ip.latitude!=='number'||typeof ip.longitude!=='number')throw Error('ip');
+  showLocatedWeather(ip.latitude,ip.longitude,ip.city||ip.region||ip.country,true);toast('已使用网络位置；允许精确定位可提高准确度');done()
+ }).catch(function(){city.textContent='定位失败，点击重试';toast('暂时无法获取位置，请检查网络或浏览器权限');done()})
 }
-$('#locateWeather').onclick=async()=>{
- const btn=$('#locateWeather'),city=$('#weatherCity');if(btn.classList.contains('locating'))return;
+$('#locateWeather').onclick=function(){
+ var btn=$('#locateWeather'),city=$('#weatherCity');if(btn.classList.contains('locating'))return;
  btn.classList.add('locating');city.textContent='正在定位…';
- try{
-  if(!navigator.geolocation){await locateByNetwork();return}
-  await new Promise(resolve=>navigator.geolocation.getCurrentPosition(async p=>{
-   const {latitude,longitude}=p.coords;let name='';
-   try{const rd=await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=zh`).then(r=>r.json());name=rd.city||rd.locality||rd.principalSubdivision||''}catch(e){}
-   await showLocatedWeather(latitude,longitude,name||'当前位置',false);resolve()
-  },async()=>{await locateByNetwork();resolve()},{enableHighAccuracy:true,maximumAge:300000,timeout:8000}))
- }finally{btn.classList.remove('locating')}
+ var finish=function(){btn.classList.remove('locating')};
+ if(!navigator.geolocation){locateByNetwork(finish);return}
+ navigator.geolocation.getCurrentPosition(function(p){
+  var latitude=p.coords.latitude,longitude=p.coords.longitude;
+  fetch('https://api.bigdatacloud.net/data/reverse-geocode-client?latitude='+latitude+'&longitude='+longitude+'&localityLanguage=zh')
+   .then(function(r){return r.json()}).then(function(rd){showLocatedWeather(latitude,longitude,rd.city||rd.locality||rd.principalSubdivision||'当前位置',false);finish()})
+   .catch(function(){showLocatedWeather(latitude,longitude,'当前位置',false);finish()})
+ },function(){locateByNetwork(finish)},{enableHighAccuracy:true,maximumAge:300000,timeout:8000})
 };
-$('[data-season]').forEach(b=>b.onclick=()=>{activeSeason=b.dataset.season;$$('[data-season]').forEach(x=>x.classList.remove('on'));b.classList.add('on');render()});document.addEventListener('click',e=>{const b=e.target.closest('[data-camera]');if(b){e.preventDefault();openCamera()}},true);$('#closeModal').addEventListener('click',()=>{window.blingCameraStream?.getTracks().forEach(t=>t.stop())});
+$$('[data-season]').forEach(b=>b.onclick=()=>{activeSeason=b.dataset.season;$$('[data-season]').forEach(x=>x.classList.remove('on'));b.classList.add('on');render()});document.addEventListener('click',e=>{const b=e.target.closest('[data-camera]');if(b){e.preventDefault();openCamera()}},true);$('#closeModal').addEventListener('click',()=>{window.blingCameraStream?.getTracks().forEach(t=>t.stop())});
 const oldAnalyze=$('#analyze').onclick;$('#analyze').onclick=()=>{const v=$('#ideaLink').value.trim();if(!v)return toast('先粘贴一条灵感链接呀');const tags=['日系松弛','低饱和','垂感层次'];localStorage.setItem('bling-inspiration',JSON.stringify(tags));toast('灵感已学习，并会用于“交给布灵” ✦')};$('#generate').onclick=()=>{const prefs=JSON.parse(localStorage.getItem('bling-preferences')||'["日系松弛","低饱和"]'),goals=JSON.parse(localStorage.getItem('bling-goals')||'["显高","舒适"]'),ideas=JSON.parse(localStorage.getItem('bling-inspiration')||'[]');toast('布灵正在结合衣橱与灵感…');setTimeout(()=>{$('#results').hidden=false;$$('#results .result p').forEach((p,i)=>p.textContent=`结合 ${prefs[i%prefs.length]||'日系'}、${goals[i%goals.length]||'舒适'}${ideas.length?'和你的灵感收藏':''}生成。`);toast('三套穿搭生成好了 ✦')},850)};
 /* v4 functional enhancements */
 let wardrobePage=1,wardrobePageSize=8,manageMode=false,selectedItems=new Set();
