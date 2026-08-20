@@ -67,6 +67,19 @@ body>main.stage~main.stage{display:none!important}
 .bmi-scale{height:6px;border-radius:99px;position:relative;background:linear-gradient(90deg,#d4b13a 0 14%,#25b889 14% 40%,#d0aa39 40% 60%,#d27b28 60% 80%,#c94d70 80% 100%)}
 .bmi-scale i{position:absolute;top:50%;width:10px;height:10px;border:2px solid #111b28;border-radius:50%;background:#fff;transform:translate(-50%,-50%);box-shadow:0 0 0 1px #dbe5ef}
 .bmi-labels{display:flex;justify-content:space-between;color:#8290a3;font-size:6px}
+</style><style id="body-color-and-bmi-polish">
+.model-color-control{background:#fff;border:1px solid var(--line);border-radius:13px;padding:7px 11px;display:grid;gap:4px}
+.model-color-control label{display:flex;justify-content:space-between;align-items:center;font-size:8px;color:var(--muted)}
+.model-color-control label span{font-weight:800;color:#665451}.model-color-control output{color:var(--berry);font-weight:800}
+#modelHue{width:100%;height:14px;margin:0;appearance:none;-webkit-appearance:none;background:transparent}
+#modelHue::-webkit-slider-runnable-track{height:7px;border-radius:99px;background:linear-gradient(90deg,#e992a8,#edb169,#d6d46a,#66c99d,#66b9d9,#7298dc,#aa82d0,#e992a8)}
+#modelHue::-webkit-slider-thumb{-webkit-appearance:none;width:15px;height:15px;margin-top:-4px;border:3px solid #fff;border-radius:50%;background:#6daed8;box-shadow:0 1px 4px #604b5066}
+#modelHue::-moz-range-track{height:7px;border-radius:99px;background:linear-gradient(90deg,#e992a8,#edb169,#d6d46a,#66c99d,#66b9d9,#7298dc,#aa82d0,#e992a8)}
+#modelHue::-moz-range-thumb{width:11px;height:11px;border:3px solid #fff;border-radius:50%;background:#6daed8}
+.bmi-card{background:#fff!important;color:#5d4d4a!important;border:1px solid var(--line)!important;box-shadow:none!important}
+.bmi-card header b{color:#6b5854!important}.bmi-reading strong{color:var(--berry)!important}.bmi-reading small,.bmi-labels{color:#a08b87!important}
+.bmi-scale i{border-color:#fff!important;box-shadow:0 0 0 1px #9f8a86!important}
+@media(min-width:760px){.human-viewport{grid-column:1;grid-row:1}.model-color-control{grid-column:1;grid-row:2}.metric-panel{grid-column:2;grid-row:1/3}}
 </style></head><body><main class="stage"><div class="phone">
 
 <div class="screen">
@@ -156,17 +169,19 @@ render();
 /* Open-source BodyApps female morph-target visualizer (LGPL-3.0). */
 openBodyEditor3D=function(){
  let saved;try{saved=JSON.parse(localStorage.getItem('bling-body'))}catch(e){}
- const d=Object.assign({height:162,weight:52,bust:84,waist:66,hip:92},saved||{});
+ const d=Object.assign({height:162,weight:52,bust:84,waist:66,hip:92},saved||{});const savedHue=+(localStorage.getItem('bling-body-hue')||205);
  $('#subTitle').textContent='女性 3D 身体形态';
  const metrics=[['height','身高','cm',145,190,1],['weight','体重','kg',38,110,1],['bust','胸围','cm',70,125,1],['waist','腰围','cm',52,115,1],['hip','臀围','cm',75,135,1]];
- $('#subContent').innerHTML='<div class="body-visualizer"><div class="human-viewport"><iframe id="human3dFrame" title="可旋转女性人体模型" src="bodyapps/female.html?v=dcafe75" style="width:100%;height:100%;border:0;display:block" allow="fullscreen"></iframe></div><div class="metric-panel">'+metrics.map(m=>'<div class="metric-control"><header><b>'+m[1]+'</b><span class="metric-value"><input id="num-'+m[0]+'" type="number" min="'+m[3]+'" max="'+m[4]+'" value="'+d[m[0]]+'"><em>'+m[2]+'</em></span></header><input id="range-'+m[0]+'" type="range" min="'+m[3]+'" max="'+m[4]+'" step="'+m[5]+'" value="'+d[m[0]]+'"></div>').join('')+'<div class="bmi-card"><header><b>BMI</b><span id="bmiState">健康范围</span></header><div class="bmi-reading"><strong id="bmiValue">--</strong><small>kg/m²</small></div><div class="bmi-scale"><i id="bmiMarker"></i></div><div class="bmi-labels"><span>16.5</span><span>18.5</span><span>25</span><span>30</span><span>35+</span></div></div><div class="rotate-row"><button id="turnBodyLeft" aria-label="向左旋转">↶</button><input id="bodyModelAngle" type="range" min="0" max="360" value="0" aria-label="旋转角度"><button id="turnBodyRight" aria-label="向右旋转">↷</button></div><button class="primary" id="saveHumanBody">保存身体数据</button><p class="visualizer-tip">完整女性人体网格会随尺寸平滑变化；仅用于穿搭比例预览，不作医学判断。模型：BodyApps（LGPL-3.0）。</p></div></div>';
+ $('#subContent').innerHTML='<div class="body-visualizer"><div class="human-viewport"><iframe id="human3dFrame" title="可旋转女性人体模型" src="bodyapps/female.html?v=202cca0" style="width:100%;height:100%;border:0;display:block" allow="fullscreen"></iframe></div><div class="model-color-control"><label><span>模型颜色</span><output id="modelHueName">冰川蓝</output></label><input id="modelHue" type="range" min="0" max="359" value="'+savedHue+'" aria-label="调整模型颜色"></div><div class="metric-panel">'+metrics.map(m=>'<div class="metric-control"><header><b>'+m[1]+'</b><span class="metric-value"><input id="num-'+m[0]+'" type="number" min="'+m[3]+'" max="'+m[4]+'" value="'+d[m[0]]+'"><em>'+m[2]+'</em></span></header><input id="range-'+m[0]+'" type="range" min="'+m[3]+'" max="'+m[4]+'" step="'+m[5]+'" value="'+d[m[0]]+'"></div>').join('')+'<div class="bmi-card"><header><b>BMI</b><span id="bmiState">健康范围</span></header><div class="bmi-reading"><strong id="bmiValue">--</strong><small>kg/m²</small></div><div class="bmi-scale"><i id="bmiMarker"></i></div><div class="bmi-labels"><span>16.5</span><span>18.5</span><span>25</span><span>30</span><span>35+</span></div></div><div class="rotate-row"><button id="turnBodyLeft" aria-label="向左旋转">↶</button><input id="bodyModelAngle" type="range" min="0" max="360" value="0" aria-label="旋转角度"><button id="turnBodyRight" aria-label="向右旋转">↷</button></div><button class="primary" id="saveHumanBody">保存身体数据</button><p class="visualizer-tip">完整女性人体网格会随尺寸平滑变化；仅用于穿搭比例预览，不作医学判断。模型：BodyApps（LGPL-3.0）。</p></div></div>';
  $('#overlay').classList.add('show');
  const frame=$('#human3dFrame');
  const read=()=>Object.fromEntries(metrics.map(m=>[m[0],Math.max(m[3],Math.min(m[4],+$('#num-'+m[0]).value||d[m[0]]))]));
  const updateBMI=()=>{const v=read(),bmi=v.weight/Math.pow(v.height/100,2),value=Math.round(bmi*10)/10;let state='健康范围',color='#24b987';if(value<18.5){state='偏轻';color='#d2ac35'}else if(value<25){state='健康范围';color='#24b987'}else if(value<30){state='偏高';color='#d0a337'}else if(value<35){state='肥胖 I 级';color='#d17827'}else{state='肥胖 II 级';color='#c94d70'}$('#bmiValue').textContent=value.toFixed(1);$('#bmiState').textContent=state;$('#bmiState').style.color=color;$('#bmiMarker').style.left=Math.max(1,Math.min(99,(value-15)/25*100))+'%'};
  const send=()=>frame.contentWindow?.postMessage({type:'bodyapps-update',values:read()},'*');
- window.addEventListener('message',function ready(e){if(e.source===frame.contentWindow&&e.data?.type==='bodyapps-ready'){send();window.removeEventListener('message',ready)}});
- frame.addEventListener('load',()=>setTimeout(send,120));
+ const colorName=h=>h<25?'莓粉':h<70?'蜜桃橙':h<165?'薄荷绿':h<245?'冰川蓝':h<315?'雾紫':'莓粉';
+ const sendColor=()=>{const h=+$('#modelHue').value;$('#modelHueName').textContent=colorName(h);frame.contentWindow?.postMessage({type:'bodyapps-color',hue:h},'*')};
+ window.addEventListener('message',function ready(e){if(e.source===frame.contentWindow&&e.data?.type==='bodyapps-ready'){send();sendColor();window.removeEventListener('message',ready)}});
+ frame.addEventListener('load',()=>setTimeout(()=>{send();sendColor()},120));$('#modelHue').oninput=()=>{localStorage.setItem('bling-body-hue',$('#modelHue').value);sendColor()};sendColor();
  metrics.forEach(m=>{const range=$('#range-'+m[0]),num=$('#num-'+m[0]);range.oninput=()=>{num.value=range.value;send();updateBMI()};num.oninput=()=>{range.value=num.value;send();updateBMI()}});
  let angle=0;const setAngle=v=>{angle=(v+360)%360;$('#bodyModelAngle').value=angle;frame.contentWindow?.postMessage({type:'bodyapps-angle',angle},'*')};
  $('#bodyModelAngle').oninput=e=>setAngle(+e.target.value);
