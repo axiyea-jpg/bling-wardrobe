@@ -762,6 +762,17 @@ var mid=[155,7,31,14,1,85,66,23,27,14,1,75,100,82,58,36,45], low=[110,5,27,12,0,
 var current={height:162,weight:52,shoulder:38,bust:84,waist:66,hip:92};
 function clamp(v,a,b){return Math.max(a,Math.min(b,v))}
 function map(v,a,b,c,d){return c+(clamp(v,a,b)-a)*(d-c)/(b-a)}
+function softenPrivateAreas(geometry){
+ geometry.computeBoundingBox();var b=geometry.boundingBox,w=b.max.x-b.min.x,h=b.max.y-b.min.y,cx=(b.min.x+b.max.x)/2,cz=(b.min.z+b.max.z)/2;
+ function gauss(v,c,r){var d=(v-c)/r;return Math.exp(-d*d)}
+ function soften(list){for(var i=0;i<list.length;i++){var v=list[i];if(v.z<=cz)continue;var y=(v.y-b.min.y)/h,x=v.x-cx;
+   var chest=Math.max(gauss(x-w*.115,0,w*.052),gauss(x+w*.115,0,w*.052))*gauss(y,.705,.034);
+   var groin=gauss(x,0,w*.075)*gauss(y,.405,.050);
+   var factor=1-chest*.16-groin*.28;v.z=cz+(v.z-cz)*factor;
+ }}
+ soften(geometry.vertices);for(var m=0;m<geometry.morphTargets.length;m++)soften(geometry.morphTargets[m].vertices);
+ geometry.computeBoundingBox();geometry.computeVertexNormals();
+}
 function lowerArms(geometry){
  geometry.computeBoundingBox();var b=geometry.boundingBox,w=b.max.x-b.min.x,h=b.max.y-b.min.y,px=w*.18,py=b.min.y+h*.76,limit=w*.20;
  function bend(list){for(var i=0;i<list.length;i++){var v=list[i],side=v.x<0?-1:1;if(Math.abs(v.x)<=limit||v.y<b.min.y+h*.37||v.y>py+h*.035)continue;var x=v.x-side*px,y=v.y-py,a=-side*.42,cs=Math.cos(a),sn=Math.sin(a);v.x=side*px+x*cs-y*sn;v.y=py+x*sn+y*cs}}
@@ -790,7 +801,7 @@ function apply(){
  for(var i=0;i<names.length;i++)mesh.morphTargetInfluences[i]=(values[i]-mid[i])/(high[i]-low[i]);
 }
 new THREE.JSONLoader().load('https://raw.githubusercontent.com/OpnTec/bodyapps-viz/master/models/skinned/UCS/female.js',function(geometry){
- geometry.computeBoundingBox();lowerArms(geometry);
+ geometry.computeBoundingBox();lowerArms(geometry);softenPrivateAreas(geometry);
  material=new THREE.MeshPhongMaterial({color:0x7674d2,ambient:0x23213f,specular:0x302f50,shininess:4,morphTargets:true,side:THREE.DoubleSide});
  mesh=new THREE.Mesh(geometry,material);root.add(mesh);root.scale.set(70,70,70);
  root.position.y=2400-geometry.boundingBox.min.y*70;root.position.z=100;fitWholeBody(geometry);
