@@ -751,10 +751,10 @@ if(!window.THREE){status.textContent='3D 组件加载失败';return}
 var scene=new THREE.Scene(),camera=new THREE.PerspectiveCamera(27,stage.clientWidth/stage.clientHeight,1,100000);
 camera.position.set(0,2950,4200);
 var renderer=new THREE.WebGLRenderer({antialias:true,alpha:false});renderer.setClearColor(0x12161c,1);renderer.setSize(stage.clientWidth,stage.clientHeight);stage.appendChild(renderer.domElement);
-scene.add(new THREE.HemisphereLight(0xd9ecff,0x172238,1.25));
-var key=new THREE.DirectionalLight(0xffffff,1.35);key.position.set(5,8,7);scene.add(key);
-var fill=new THREE.DirectionalLight(0x79baff,.72);fill.position.set(-5,2,4);scene.add(fill);
-var rim=new THREE.DirectionalLight(0x7c9dff,.9);rim.position.set(3,4,-5);scene.add(rim);
+scene.add(new THREE.HemisphereLight(0xb8d7ef,0x07101c,.48));
+var key=new THREE.DirectionalLight(0xdceeff,.92);key.position.set(5,8,7);scene.add(key);
+var fill=new THREE.DirectionalLight(0x397fbd,.20);fill.position.set(-5,2,4);scene.add(fill);
+var rim=new THREE.DirectionalLight(0x5e9bd2,.42);rim.position.set(3,4,-5);scene.add(rim);
 var root=new THREE.Object3D(),mesh=null,angle=0,targetY=2850,distance=4200,minDistance=3600,maxDistance=5000,drag=false,lastX=0,idleAt=Date.now();
 scene.add(root);
 var names=["Height","Neck Height","Neck","Shoulders","Shoulder Angle","Breast","Bust Girth","Arm Length","Upper Arm Girth","Wrist","Stomach Form","Waist","Hip Girth","Hip Height","Thigh Girth","Calf Girth","lower Leg"];
@@ -791,7 +791,7 @@ function apply(){
 }
 new THREE.JSONLoader().load('https://raw.githubusercontent.com/OpnTec/bodyapps-viz/master/models/skinned/UCS/female.js',function(geometry){
  geometry.computeBoundingBox();lowerArms(geometry);
- var material=new THREE.MeshPhongMaterial({color:0x8fc7f3,ambient:0x263d58,specular:0xbddfff,shininess:22,morphTargets:true,side:THREE.DoubleSide});
+ var material=new THREE.MeshPhongMaterial({color:0x5598cf,ambient:0x101923,specular:0x78a9c9,shininess:12,morphTargets:true,side:THREE.DoubleSide});
  mesh=new THREE.Mesh(geometry,material);root.add(mesh);root.scale.set(70,70,70);
  root.position.y=2400-geometry.boundingBox.min.y*70;root.position.z=100;fitWholeBody(geometry);
  apply();status.style.display='none';
@@ -807,7 +807,7 @@ renderer.domElement.addEventListener('touchend',function(){drag=false});
 renderer.domElement.addEventListener('wheel',function(e){e.preventDefault();distance=clamp(distance+e.deltaY*2.5,minDistance,maxDistance);idleAt=Date.now()},{passive:false});
 window.addEventListener('message',function(e){var m=e.data||{};if(m.type==='bodyapps-update'){current=m.values||current;apply()}if(m.type==='bodyapps-angle'){angle=(+m.angle||0)*Math.PI/180;idleAt=Date.now()}});
 window.addEventListener('resize',function(){camera.aspect=stage.clientWidth/stage.clientHeight;camera.updateProjectionMatrix();renderer.setSize(stage.clientWidth,stage.clientHeight);if(mesh)fitWholeBody(mesh.geometry)});
-function loop(){requestAnimationFrame(loop);if(!drag&&Date.now()-idleAt>2200)angle+=.0025;setCamera();renderer.render(scene,camera)}loop();
+function loop(){requestAnimationFrame(loop);setCamera();renderer.render(scene,camera)}loop();
 parent.postMessage({type:'bodyapps-ready'},'*');
 })();
 </script></body></html>
