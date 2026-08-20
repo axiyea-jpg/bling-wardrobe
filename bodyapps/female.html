@@ -764,23 +764,16 @@ function clamp(v,a,b){return Math.max(a,Math.min(b,v))}
 function map(v,a,b,c,d){return c+(clamp(v,a,b)-a)*(d-c)/(b-a)}
 function softenPrivateAreas(geometry){
  geometry.computeBoundingBox();var b=geometry.boundingBox,w=b.max.x-b.min.x,h=b.max.y-b.min.y,cx=(b.min.x+b.max.x)/2,cz=(b.min.z+b.max.z)/2;
- function flattenPatch(list,px,py,rx,ry){
-   var samples=[],i,v,dx,dy,d,target,t;
-   for(i=0;i<list.length;i++){v=list[i];if(v.z<=cz)continue;dx=(v.x-px)/rx;dy=(v.y-py)/ry;d=Math.sqrt(dx*dx+dy*dy);if(d>=1.02&&d<=1.48)samples.push(v.z)}
-   if(!samples.length)return;samples.sort(function(a,b){return a-b});target=samples[Math.floor(samples.length*.50)];
-   for(i=0;i<list.length;i++){v=list[i];if(v.z<=cz)continue;dx=(v.x-px)/rx;dy=(v.y-py)/ry;d=Math.sqrt(dx*dx+dy*dy);if(d<1){t=Math.pow(1-d,.62);v.z=v.z*(1-t)+target*t}}
- }
- function sealCenterLine(list){
-   var i,v,nx,ny,t,side=[],target;
-   for(i=0;i<list.length;i++){v=list[i];if(v.z<=cz)continue;nx=Math.abs(v.x-cx)/w;ny=(v.y-b.min.y)/h;if(ny>.435&&ny<.555&&nx>.095&&nx<.18)side.push(v.z)}
-   if(!side.length)return;side.sort(function(a,b){return a-b});target=side[Math.floor(side.length*.58)];
-   for(i=0;i<list.length;i++){v=list[i];if(v.z<=cz)continue;nx=Math.abs(v.x-cx)/w;ny=(v.y-b.min.y)/h;if(ny>.445&&ny<.545&&nx<.15){t=Math.pow(1-nx/.15,.55)*Math.sin(Math.PI*(ny-.445)/.10);if(t>0)v.z=v.z*(1-Math.min(.94,t))+target*Math.min(.94,t)}}
+ function removeDetail(list,px,py,rx,ry){
+   var ring=[],i,v,dx,dy,d,target,t;
+   for(i=0;i<list.length;i++){v=list[i];if(v.z<=cz)continue;dx=(v.x-px)/rx;dy=(v.y-py)/ry;d=Math.sqrt(dx*dx+dy*dy);if(d>=1&&d<=1.8)ring.push(v.z)}
+   if(!ring.length)return;ring.sort(function(a,b){return a-b});target=ring[Math.floor(ring.length*.5)];
+   for(i=0;i<list.length;i++){v=list[i];if(v.z<=cz)continue;dx=(v.x-px)/rx;dy=(v.y-py)/ry;d=Math.sqrt(dx*dx+dy*dy);if(d<1){t=.88*Math.pow(1-d,1.7);v.z=v.z*(1-t)+target*t}}
  }
  function soften(list){
-   flattenPatch(list,cx-w*.145,b.min.y+h*.755,w*.080,h*.050);
-   flattenPatch(list,cx+w*.145,b.min.y+h*.755,w*.080,h*.050);
-   flattenPatch(list,cx,b.min.y+h*.490,w*.130,h*.075);
-   sealCenterLine(list);
+   removeDetail(list,cx-w*.145,b.min.y+h*.755,w*.030,h*.022);
+   removeDetail(list,cx+w*.145,b.min.y+h*.755,w*.030,h*.022);
+   removeDetail(list,cx,b.min.y+h*.490,w*.045,h*.032);
  }
  soften(geometry.vertices);for(var m=0;m<geometry.morphTargets.length;m++)soften(geometry.morphTargets[m].vertices);
  geometry.computeBoundingBox();geometry.computeVertexNormals();
@@ -799,23 +792,31 @@ function fitWholeBody(geometry){
 }
 function apply(){
  if(!mesh||!mesh.morphTargetInfluences)return;
- var values=mid.slice(),w=current.weight||52;
- values[0]=clamp(current.height,110,210);
- values[3]=map(current.shoulder||38,30,50,12,16);
- values[5]=map(current.bust||84,70,125,70,100);
- values[6]=map(current.bust||84,70,125,56,76);
- values[8]=map(w,38,110,22,32);
- values[10]=map(w,38,110,0,2);
- values[11]=clamp(current.waist,65,85);
- values[12]=clamp(current.hip,86,114);
- values[14]=map(w,38,110,49,66);
- values[15]=map(w,38,110,26,44);
- for(var i=0;i<names.length;i++)mesh.morphTargetInfluences[i]=(values[i]-mid[i])/(high[i]-low[i]);
+ var values=mid.slice(),w=clamp(+current.weight||52,35,140),height=clamp(+current.height||162,110,210);
+ var hm=height/100,bmi=w/(hm*hm),bodyT=clamp((bmi-16)/(35-16),0,1);
+ function bodyValue(i){return low[i]+bodyT*(high[i]-low[i])}
+ values[0]=height;
+ values[1]=map(height,110,210,low[1],high[1]);
+ values[2]=bodyValue(2);
+ values[3]=map(current.shoulder||38,30,50,low[3],high[3]);
+ values[5]=map(current.bust||84,70,125,low[5],high[5]);
+ values[6]=map(current.bust||84,70,125,low[6],high[6]);
+ values[7]=map(height,110,210,low[7],high[7]);
+ values[8]=bodyValue(8);
+ values[9]=bodyValue(9);
+ values[10]=bodyValue(10);
+ values[11]=clamp(+current.waist||75,low[11],high[11]);
+ values[12]=clamp(+current.hip||100,low[12],high[12]);
+ values[13]=map(height,110,210,low[13],high[13]);
+ values[14]=bodyValue(14);
+ values[15]=bodyValue(15);
+ values[16]=bodyValue(16);
+ for(var i=0;i<names.length;i++)mesh.morphTargetInfluences[i]=clamp((values[i]-mid[i])/(high[i]-low[i]),-.45,.55);
 }
 new THREE.JSONLoader().load('https://raw.githubusercontent.com/OpnTec/bodyapps-viz/master/models/skinned/UCS/female.js',function(geometry){
  geometry.computeBoundingBox();lowerArms(geometry);softenPrivateAreas(geometry);
- material=new THREE.MeshPhongMaterial({color:0x7674d2,ambient:0x23213f,specular:0x302f50,shininess:4,morphTargets:true,side:THREE.DoubleSide});
- mesh=new THREE.Mesh(geometry,material);root.add(mesh);root.scale.set(70,70,70);
+ material=new THREE.MeshPhongMaterial({color:0x7674d2,ambient:0x23213f,specular:0x302f50,shininess:4,morphTargets:true,skinning:true,side:THREE.DoubleSide});
+ mesh=new THREE.SkinnedMesh(geometry,material);root.add(mesh);root.scale.set(70,70,70);
  root.position.y=2400-geometry.boundingBox.min.y*70;root.position.z=100;fitWholeBody(geometry);
  apply();status.style.display='none';
 },undefined,function(){status.textContent='人体模型加载失败，请刷新重试'});
