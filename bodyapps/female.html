@@ -755,13 +755,25 @@ scene.add(new THREE.HemisphereLight(0xd9ecff,0x172238,1.25));
 var key=new THREE.DirectionalLight(0xffffff,1.35);key.position.set(5,8,7);scene.add(key);
 var fill=new THREE.DirectionalLight(0x79baff,.72);fill.position.set(-5,2,4);scene.add(fill);
 var rim=new THREE.DirectionalLight(0x7c9dff,.9);rim.position.set(3,4,-5);scene.add(rim);
-var root=new THREE.Object3D(),mesh=null,angle=0,targetY=2850,distance=4200,drag=false,lastX=0,lastY=0,tilt=0.02,idleAt=Date.now();
+var root=new THREE.Object3D(),mesh=null,angle=0,targetY=2850,distance=4200,minDistance=3600,maxDistance=5000,drag=false,lastX=0,idleAt=Date.now();
 scene.add(root);
 var names=["Height","Neck Height","Neck","Shoulders","Shoulder Angle","Breast","Bust Girth","Arm Length","Upper Arm Girth","Wrist","Stomach Form","Waist","Hip Girth","Hip Height","Thigh Girth","Calf Girth","lower Leg"];
 var mid=[155,7,31,14,1,85,66,23,27,14,1,75,100,82,58,36,45], low=[110,5,27,12,0,70,56,16,22,9,0,65,86,72,49,26,39], high=[210,9,35,16,2,100,76,27,32,18,2,85,114,92,66,44,53];
 var current={height:162,weight:52,shoulder:38,bust:84,waist:66,hip:92};
 function clamp(v,a,b){return Math.max(a,Math.min(b,v))}
 function map(v,a,b,c,d){return c+(clamp(v,a,b)-a)*(d-c)/(b-a)}
+function lowerArms(geometry){
+ geometry.computeBoundingBox();var b=geometry.boundingBox,w=b.max.x-b.min.x,h=b.max.y-b.min.y,px=w*.18,py=b.min.y+h*.76,limit=w*.20;
+ function bend(list){for(var i=0;i<list.length;i++){var v=list[i],side=v.x<0?-1:1;if(Math.abs(v.x)<=limit||v.y<b.min.y+h*.37||v.y>py+h*.035)continue;var x=v.x-side*px,y=v.y-py,a=-side*.22,cs=Math.cos(a),sn=Math.sin(a);v.x=side*px+x*cs-y*sn;v.y=py+x*sn+y*cs}}
+ bend(geometry.vertices);for(var m=0;m<geometry.morphTargets.length;m++)bend(geometry.morphTargets[m].vertices);
+ geometry.computeBoundingBox();geometry.computeVertexNormals();
+}
+function fitWholeBody(geometry){
+ var b=geometry.boundingBox,w=(b.max.x-b.min.x)*70,h=(b.max.y-b.min.y)*70;
+ targetY=((b.min.y+b.max.y)/2)*70+root.position.y;
+ var halfFov=camera.fov*Math.PI/360,fitH=(h/2)/Math.tan(halfFov),fitW=(w/2)/(Math.tan(halfFov)*camera.aspect);
+ minDistance=Math.max(fitH,fitW)*1.10;maxDistance=minDistance*1.42;distance=minDistance*1.08;
+}
 function apply(){
  if(!mesh||!mesh.morphTargetInfluences)return;
  var values=mid.slice(),w=current.weight||52;
@@ -778,23 +790,23 @@ function apply(){
  for(var i=0;i<names.length;i++)mesh.morphTargetInfluences[i]=(values[i]-mid[i])/(high[i]-low[i]);
 }
 new THREE.JSONLoader().load('https://raw.githubusercontent.com/OpnTec/bodyapps-viz/master/models/skinned/UCS/female.js',function(geometry){
- geometry.computeBoundingBox();geometry.computeVertexNormals();
+ geometry.computeBoundingBox();lowerArms(geometry);
  var material=new THREE.MeshPhongMaterial({color:0x8fc7f3,ambient:0x263d58,specular:0xbddfff,shininess:22,morphTargets:true,side:THREE.DoubleSide});
  mesh=new THREE.Mesh(geometry,material);root.add(mesh);root.scale.set(70,70,70);
- root.position.y=2400-geometry.boundingBox.min.y*70;root.position.z=100;
+ root.position.y=2400-geometry.boundingBox.min.y*70;root.position.z=100;fitWholeBody(geometry);
  apply();status.style.display='none';
 },undefined,function(){status.textContent='人体模型加载失败，请刷新重试'});
-function setCamera(){camera.position.x=Math.sin(angle)*distance;camera.position.z=Math.cos(angle)*distance;camera.position.y=targetY+Math.sin(tilt)*distance*.45;camera.lookAt(new THREE.Vector3(0,targetY,0))}
-function pointerDown(x,y){drag=true;lastX=x;lastY=y;idleAt=Date.now()}
-function pointerMove(x,y){if(!drag)return;angle-=(x-lastX)*.009;tilt=clamp(tilt+(y-lastY)*.004,-.65,.65);lastX=x;lastY=y;idleAt=Date.now()}
-renderer.domElement.addEventListener('mousedown',function(e){pointerDown(e.clientX,e.clientY)});
-window.addEventListener('mousemove',function(e){pointerMove(e.clientX,e.clientY)});window.addEventListener('mouseup',function(){drag=false});
-renderer.domElement.addEventListener('touchstart',function(e){if(e.touches.length===1)pointerDown(e.touches[0].clientX,e.touches[0].clientY);if(e.touches.length===2){drag=false;lastX=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY)}},{passive:true});
-renderer.domElement.addEventListener('touchmove',function(e){if(e.touches.length===1)pointerMove(e.touches[0].clientX,e.touches[0].clientY);if(e.touches.length===2){var n=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);distance=clamp(distance-(n-lastX)*8,2300,7000);lastX=n;idleAt=Date.now()}},{passive:true});
+function setCamera(){camera.position.x=Math.sin(angle)*distance;camera.position.z=Math.cos(angle)*distance;camera.position.y=targetY;camera.lookAt(new THREE.Vector3(0,targetY,0))}
+function pointerDown(x){drag=true;lastX=x;idleAt=Date.now()}
+function pointerMove(x){if(!drag)return;angle-=(x-lastX)*.009;lastX=x;idleAt=Date.now()}
+renderer.domElement.addEventListener('mousedown',function(e){pointerDown(e.clientX)});
+window.addEventListener('mousemove',function(e){pointerMove(e.clientX)});window.addEventListener('mouseup',function(){drag=false});
+renderer.domElement.addEventListener('touchstart',function(e){if(e.touches.length===1)pointerDown(e.touches[0].clientX);if(e.touches.length===2){drag=false;lastX=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY)}},{passive:true});
+renderer.domElement.addEventListener('touchmove',function(e){if(e.touches.length===1)pointerMove(e.touches[0].clientX);if(e.touches.length===2){var n=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);distance=clamp(distance-(n-lastX)*8,minDistance,maxDistance);lastX=n;idleAt=Date.now()}},{passive:true});
 renderer.domElement.addEventListener('touchend',function(){drag=false});
-renderer.domElement.addEventListener('wheel',function(e){e.preventDefault();distance=clamp(distance+e.deltaY*2.5,2300,7000);idleAt=Date.now()},{passive:false});
+renderer.domElement.addEventListener('wheel',function(e){e.preventDefault();distance=clamp(distance+e.deltaY*2.5,minDistance,maxDistance);idleAt=Date.now()},{passive:false});
 window.addEventListener('message',function(e){var m=e.data||{};if(m.type==='bodyapps-update'){current=m.values||current;apply()}if(m.type==='bodyapps-angle'){angle=(+m.angle||0)*Math.PI/180;idleAt=Date.now()}});
-window.addEventListener('resize',function(){camera.aspect=stage.clientWidth/stage.clientHeight;camera.updateProjectionMatrix();renderer.setSize(stage.clientWidth,stage.clientHeight)});
+window.addEventListener('resize',function(){camera.aspect=stage.clientWidth/stage.clientHeight;camera.updateProjectionMatrix();renderer.setSize(stage.clientWidth,stage.clientHeight);if(mesh)fitWholeBody(mesh.geometry)});
 function loop(){requestAnimationFrame(loop);if(!drag&&Date.now()-idleAt>2200)angle+=.0025;setCamera();renderer.render(scene,camera)}loop();
 parent.postMessage({type:'bodyapps-ready'},'*');
 })();
