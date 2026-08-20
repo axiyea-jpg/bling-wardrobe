@@ -769,14 +769,14 @@ function softenPrivateAreas(geometry){
    if(!ring.length)return null;ring.sort(function(a,b){return a-b});return ring[Math.floor(ring.length*.58)]
  }
  function removeNipple(list,px,py){
-   var rx=w*.046,ry=h*.030,target=ringTarget(list,px,py,rx,ry);if(target===null)return;
-   for(var i=0;i<list.length;i++){var v=list[i];if(v.z<=target)continue;var dx=(v.x-px)/rx,dy=(v.y-py)/ry,d=Math.sqrt(dx*dx+dy*dy);if(d<1){var t=.96*Math.pow(1-d,1.25);v.z=v.z*(1-t)+target*t}}
+   var rx=w*.027,ry=h*.018,target=ringTarget(list,px,py,rx,ry);if(target===null)return;
+   for(var i=0;i<list.length;i++){var v=list[i];if(v.z<=cz)continue;var dx=(v.x-px)/rx,dy=(v.y-py)/ry,d=Math.sqrt(dx*dx+dy*dy);if(d<1){var t=.98*Math.pow(1-d,1.1);v.z=v.z*(1-t)+target*t}}
  }
  function removeGroove(list){
-   var px=cx,py=b.min.y+h*.490,rx=w*.050,ry=h*.034,target=ringTarget(list,px,py,rx,ry);if(target===null)return;
+   var px=cx,py=b.min.y+h*.505,rx=w*.050,ry=h*.034,target=ringTarget(list,px,py,rx,ry);if(target===null)return;
    for(var i=0;i<list.length;i++){var v=list[i];if(v.z<=cz||v.z>=target)continue;var dx=(v.x-px)/rx,dy=(v.y-py)/ry,d=Math.sqrt(dx*dx+dy*dy);if(d<1){var t=.82*Math.pow(1-d,1.4);v.z=v.z*(1-t)+target*t}}
  }
- function soften(list){removeNipple(list,cx-w*.145,b.min.y+h*.755);removeNipple(list,cx+w*.145,b.min.y+h*.755);removeGroove(list)}
+ function soften(list){removeNipple(list,cx-w*.151,b.min.y+h*.732);removeNipple(list,cx+w*.151,b.min.y+h*.732);removeGroove(list)}
  soften(geometry.vertices);for(var m=0;m<geometry.morphTargets.length;m++)soften(geometry.morphTargets[m].vertices);
  geometry.computeBoundingBox();geometry.computeVertexNormals();
 }
