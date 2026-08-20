@@ -765,15 +765,22 @@ function map(v,a,b,c,d){return c+(clamp(v,a,b)-a)*(d-c)/(b-a)}
 function softenPrivateAreas(geometry){
  geometry.computeBoundingBox();var b=geometry.boundingBox,w=b.max.x-b.min.x,h=b.max.y-b.min.y,cx=(b.min.x+b.max.x)/2,cz=(b.min.z+b.max.z)/2;
  function flattenPatch(list,px,py,rx,ry){
-   var sum=0,count=0,i,v,dx,dy,d;
-   for(i=0;i<list.length;i++){v=list[i];if(v.z<=cz)continue;dx=(v.x-px)/rx;dy=(v.y-py)/ry;d=Math.sqrt(dx*dx+dy*dy);if(d>=1.02&&d<=1.65){sum+=v.z;count++}}
-   if(!count)return;var target=sum/count;
-   for(i=0;i<list.length;i++){v=list[i];if(v.z<=cz)continue;dx=(v.x-px)/rx;dy=(v.y-py)/ry;d=Math.sqrt(dx*dx+dy*dy);if(d<1){var t=Math.pow(1-d,1.35);v.z=v.z*(1-t)+target*t}}
+   var samples=[],i,v,dx,dy,d,target,t;
+   for(i=0;i<list.length;i++){v=list[i];if(v.z<=cz)continue;dx=(v.x-px)/rx;dy=(v.y-py)/ry;d=Math.sqrt(dx*dx+dy*dy);if(d>=1.02&&d<=1.48)samples.push(v.z)}
+   if(!samples.length)return;samples.sort(function(a,b){return a-b});target=samples[Math.floor(samples.length*.50)];
+   for(i=0;i<list.length;i++){v=list[i];if(v.z<=cz)continue;dx=(v.x-px)/rx;dy=(v.y-py)/ry;d=Math.sqrt(dx*dx+dy*dy);if(d<1){t=Math.pow(1-d,.62);v.z=v.z*(1-t)+target*t}}
+ }
+ function sealCenterLine(list){
+   var i,v,nx,ny,t,side=[],target;
+   for(i=0;i<list.length;i++){v=list[i];if(v.z<=cz)continue;nx=Math.abs(v.x-cx)/w;ny=(v.y-b.min.y)/h;if(ny>.335&&ny<.485&&nx>.115&&nx<.19)side.push(v.z)}
+   if(!side.length)return;side.sort(function(a,b){return a-b});target=side[Math.floor(side.length*.58)];
+   for(i=0;i<list.length;i++){v=list[i];if(v.z<=cz)continue;nx=Math.abs(v.x-cx)/w;ny=(v.y-b.min.y)/h;if(ny>.345&&ny<.475&&nx<.17){t=Math.pow(1-nx/.17,.55)*Math.sin(Math.PI*(ny-.345)/.13);if(t>0)v.z=v.z*(1-Math.min(.94,t))+target*Math.min(.94,t)}}
  }
  function soften(list){
-   flattenPatch(list,cx-w*.115,b.min.y+h*.705,w*.070,h*.048);
-   flattenPatch(list,cx+w*.115,b.min.y+h*.705,w*.070,h*.048);
-   flattenPatch(list,cx,b.min.y+h*.405,w*.105,h*.070);
+   flattenPatch(list,cx-w*.115,b.min.y+h*.705,w*.095,h*.065);
+   flattenPatch(list,cx+w*.115,b.min.y+h*.705,w*.095,h*.065);
+   flattenPatch(list,cx,b.min.y+h*.405,w*.165,h*.095);
+   sealCenterLine(list);
  }
  soften(geometry.vertices);for(var m=0;m<geometry.morphTargets.length;m++)soften(geometry.morphTargets[m].vertices);
  geometry.computeBoundingBox();geometry.computeVertexNormals();
