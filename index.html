@@ -150,6 +150,10 @@ body>main.stage~main.stage{display:none!important}
 .compact-actions>label>select{width:54px!important;min-width:54px!important;padding:7px 21px 7px 8px!important}
 .compact-actions>label{margin-left:auto!important}
 </style>
+
+<style id="inline-tag-edit-v11">
+.inline-tag-edit{width:100%;height:34px;min-width:0;border:1px solid var(--pink);border-radius:10px;padding:0 10px;background:#fff;outline:none;color:var(--ink);font-size:10px;box-shadow:0 0 0 3px #fbe5e988}
+</style>
 </head><body><main class="stage"><div class="phone">
 
 <div class="screen">
@@ -223,7 +227,12 @@ function editItemInfo(i){const x=items[i],m=itemMeta[i]||['','',''];$('#modalBod
 function removeIndices(indices){[...indices].sort((a,b)=>b-a).forEach(i=>{items.splice(i,1);seasons.splice(i,1);itemMeta.splice(i,1)});selectedItems.clear();saveWardrobe();render();toast('已从衣橱移除')} 
 openItem=function(i){const x=items[i],m=itemMeta[i]||['自动识别','待补充','日常'];$('#subTitle').textContent=x[0];$('#subContent').innerHTML=`<div class="detail-hero ${x[2]}"></div><div class="detail-info"><h2>${x[0]}</h2><div class="auto-tags">${m.map(t=>`<em>${t}</em>`).join('')}<em>${seasons[i]||'四季'}</em></div><p>这些信息由布灵在录入时自动识别，你可以随时编辑。</p></div><div class="options"><button data-wear="${i}"><b>加入当前穿搭</b><small>在试衣间查看效果</small></button><button data-edit-item="${i}"><b>编辑名称与标签</b><small>修改颜色、材质、版型和季节</small></button><button class="danger" data-delete-item="${i}"><b>从衣橱移除</b><small>删除这件单品</small></button></div>`;$('#overlay').classList.add('show')};
 const oldGo=go;go=function(id){oldGo(id);$('.screen').classList.toggle('profile-mode',id==='profile');updateProfileTags();updateProfileStats()};
-function profileClothingSize(d){const bust=+d.bust||84,waist=+d.waist||66,hip=+d.hip||92;if(bust<=82&&waist<=64&&hip<=88)return'S';if(bust<=88&&waist<=70&&hip<=94)return'M';if(bust<=94&&waist<=76&&hip<=100)return'L';if(bust<=100&&waist<=82&&hip<=106)return'XL';return'2XL'}
+function profileClothingSize(d){
+ const height=Math.max(1,+d.height||162),weight=Math.max(1,+d.weight||52),bust=+d.bust||84,waist=+d.waist||66,hip=+d.hip||92,bmi=weight/Math.pow(height/100,2),sizes=['S','M','L','XL','2XL'];
+ let measureIndex=0;if(bust>82||waist>64||hip>88)measureIndex=1;if(bust>88||waist>70||hip>94)measureIndex=2;if(bust>94||waist>76||hip>100)measureIndex=3;if(bust>100||waist>82||hip>106)measureIndex=4;
+ let bmiIndex=bmi<18.5?0:bmi<24?1:bmi<28?2:bmi<32?3:4;
+ return sizes[Math.max(measureIndex,bmiIndex)]
+}
 function updateProfileStats(){let d;try{d=JSON.parse(localStorage.getItem('bling-body'))}catch(e){}d=d||{height:162,weight:52,bust:84,waist:66,hip:92};const h=$('#profileHeight'),w=$('#profileWeight'),s=$('#profileSize');if(h)h.textContent=Math.round(+d.height||162);if(w)w.textContent=Math.round(+d.weight||52);if(s)s.textContent=profileClothingSize(d)}
 function updateProfileTags(){for(const [id,key,def] of [['preferenceSummary','bling-preferences',['日系松弛','韩系通勤','低饱和']],['goalsSummary','bling-goals',['显高','显瘦','舒适','上镜']]]){const e=$('#'+id);if(e){let v;try{v=JSON.parse(localStorage.getItem(key))}catch(x){}e.textContent=(Array.isArray(v)&&v.length?v:def).slice(0,3).join(' · ')}}}
 choiceEditor=function(title,key,options,defaults){
@@ -237,7 +246,21 @@ choiceEditor=function(title,key,options,defaults){
  $('#subContent').innerHTML=`<div class="card compact-choice-card"><div class="choice-intro"><b>标签优先级</b><small>拖动调整顺序；排在前面的标签会优先用于 AI 搭配。</small></div><div id="tagManager" class="tag-manager compact-manager"></div><div class="tag-add compact-add"><input id="newTag" placeholder="添加新标签"><button id="addTag">添加</button></div></div><button class="primary compact-save" id="saveChoices">保存排序与标签</button>`;
  $('#overlay').classList.add('show');draw();
  const manager=$('#tagManager');
- manager.onclick=e=>{const b=e.target.closest('button');if(!b||b.dataset.dragHandle!=null)return;const ti=b.dataset.tagToggle,ei=b.dataset.tagEdit,di=b.dataset.tagDelete;if(ti!=null){const x=vals[+ti];selected=selected.includes(x)?selected.filter(v=>v!==x):[...selected,x]}else if(ei!=null){const old=vals[+ei],n=prompt('修改标签名称',old);if(n&&n.trim()){vals[+ei]=n.trim();selected=selected.map(v=>v===old?n.trim():v)}}else if(di!=null){const old=vals[+di];vals.splice(+di,1);selected=selected.filter(v=>v!==old)}draw()};
+ manager.onclick=e=>{
+  const b=e.target.closest('button');if(!b||b.dataset.dragHandle!=null)return;
+  const ti=b.dataset.tagToggle,ei=b.dataset.tagEdit,di=b.dataset.tagDelete;
+  if(ti!=null){const x=vals[+ti];selected=selected.includes(x)?selected.filter(v=>v!==x):[...selected,x]}
+  else if(ei!=null){
+   const index=+ei,old=vals[index],row=b.closest('.manage-tag'),toggle=row.querySelector('.tag-toggle'),input=document.createElement('input');let finished=false;
+   input.className='inline-tag-edit';input.value=old;input.setAttribute('aria-label','修改标签名称');
+   toggle.replaceWith(input);input.focus();input.select();
+   const complete=save=>{if(finished)return;finished=true;const n=input.value.trim();if(save&&n){if(n!==old&&vals.includes(n)){toast('这个标签已经存在')}else{vals[index]=n;selected=selected.map(v=>v===old?n:v)}}draw()};
+   input.onkeydown=event=>{if(event.key==='Enter'){event.preventDefault();complete(true)}else if(event.key==='Escape'){event.preventDefault();complete(false)}};
+   input.onblur=()=>complete(true);return
+  }
+  else if(di!=null){const old=vals[+di];vals.splice(+di,1);selected=selected.filter(v=>v!==old)}
+  draw()
+};
  manager.ondragstart=e=>{const row=e.target.closest('.manage-tag');if(row){dragFrom=+row.dataset.tagIndex;row.classList.add('dragging');if(e.dataTransfer)e.dataTransfer.effectAllowed='move'}};
  manager.ondragover=e=>{e.preventDefault();const row=e.target.closest('.manage-tag');if(row&&dragFrom!=null){const to=+row.dataset.tagIndex;if(to!==dragFrom){const moved=vals.splice(dragFrom,1)[0];vals.splice(to,0,moved);dragFrom=to;syncOrder();draw()}}};
  manager.ondrop=e=>{e.preventDefault();dragFrom=null;draw()};manager.ondragend=()=>{dragFrom=null;draw()};
