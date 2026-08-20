@@ -772,14 +772,14 @@ function softenPrivateAreas(geometry){
  }
  function sealCenterLine(list){
    var i,v,nx,ny,t,side=[],target;
-   for(i=0;i<list.length;i++){v=list[i];if(v.z<=cz)continue;nx=Math.abs(v.x-cx)/w;ny=(v.y-b.min.y)/h;if(ny>.335&&ny<.485&&nx>.115&&nx<.19)side.push(v.z)}
+   for(i=0;i<list.length;i++){v=list[i];if(v.z<=cz)continue;nx=Math.abs(v.x-cx)/w;ny=(v.y-b.min.y)/h;if(ny>.435&&ny<.555&&nx>.095&&nx<.18)side.push(v.z)}
    if(!side.length)return;side.sort(function(a,b){return a-b});target=side[Math.floor(side.length*.58)];
-   for(i=0;i<list.length;i++){v=list[i];if(v.z<=cz)continue;nx=Math.abs(v.x-cx)/w;ny=(v.y-b.min.y)/h;if(ny>.345&&ny<.475&&nx<.17){t=Math.pow(1-nx/.17,.55)*Math.sin(Math.PI*(ny-.345)/.13);if(t>0)v.z=v.z*(1-Math.min(.94,t))+target*Math.min(.94,t)}}
+   for(i=0;i<list.length;i++){v=list[i];if(v.z<=cz)continue;nx=Math.abs(v.x-cx)/w;ny=(v.y-b.min.y)/h;if(ny>.445&&ny<.545&&nx<.15){t=Math.pow(1-nx/.15,.55)*Math.sin(Math.PI*(ny-.445)/.10);if(t>0)v.z=v.z*(1-Math.min(.94,t))+target*Math.min(.94,t)}}
  }
  function soften(list){
-   flattenPatch(list,cx-w*.115,b.min.y+h*.705,w*.095,h*.065);
-   flattenPatch(list,cx+w*.115,b.min.y+h*.705,w*.095,h*.065);
-   flattenPatch(list,cx,b.min.y+h*.405,w*.165,h*.095);
+   flattenPatch(list,cx-w*.145,b.min.y+h*.755,w*.080,h*.050);
+   flattenPatch(list,cx+w*.145,b.min.y+h*.755,w*.080,h*.050);
+   flattenPatch(list,cx,b.min.y+h*.490,w*.130,h*.075);
    sealCenterLine(list);
  }
  soften(geometry.vertices);for(var m=0;m<geometry.morphTargets.length;m++)soften(geometry.morphTargets[m].vertices);
