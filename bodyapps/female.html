@@ -776,12 +776,12 @@ function softenPrivateAreas(geometry){
 }
 function addSmoothWeightMorph(geometry){
  geometry.computeBoundingBox();var b=geometry.boundingBox,w=b.max.x-b.min.x,h=b.max.y-b.min.y,cx=(b.min.x+b.max.x)/2,cz=(b.min.z+b.max.z)/2;
- function smoothstep(a,b,x){x=Math.max(0,Math.min(1,(x-a)/(b-a)));return x*x*(3-2*x)}
+ function ease(t){t=Math.max(0,Math.min(1,t));return t*t*(3-2*t)}
+ var knots=[[.035,.07],[.085,.13],[.18,.24],[.285,.22],[.335,.205],[.40,.275],[.50,.36],[.585,.27]];
+ function profile(y){if(y<=knots[0][0])return knots[0][1];for(var n=1;n<knots.length;n++)if(y<=knots[n][0]){var a=knots[n-1],q=knots[n],t=ease((y-a[0])/(q[0]-a[0]));return a[1]+(q[1]-a[1])*t}return knots[knots.length-1][1]}
  var verts=[];for(var i=0;i<geometry.vertices.length;i++){var v=geometry.vertices[i].clone(),ny=(v.y-b.min.y)/h,nx=Math.abs(v.x-cx)/w;
-   if(ny>.055&&ny<.585&&nx<.30){var side=v.x<cx?-1:1,legCenter=cx+side*w*.105,pelvis=smoothstep(.43,.585,ny),center=legCenter*(1-pelvis)+cx*pelvis;
-     var calf=smoothstep(.055,.15,ny)*(1-smoothstep(.285,.36,ny)),thigh=smoothstep(.275,.39,ny)*(1-smoothstep(.54,.585,ny));
-     var profile=.22*calf+.35*thigh+.14*smoothstep(.42,.50,ny);
-     v.x=center+(v.x-center)*(1+profile);v.z=cz+(v.z-cz)*(1+profile*.78)}
+   if(ny>.025&&ny<.60&&nx<.32){var side=v.x<cx?-1:1,legCenter=cx+side*w*.105,pelvis=ease((ny-.49)/.105),center=legCenter*(1-pelvis)+cx*pelvis,p=profile(ny);
+     v.x=center+(v.x-center)*(1+p);v.z=cz+(v.z-cz)*(1+p*.82)}
    verts.push(v)}
  smoothWeightIndex=geometry.morphTargets.length;geometry.morphTargets.push({name:'Smooth Weight',vertices:verts});
 }
@@ -817,7 +817,7 @@ function apply(){
  values[13]=map(height,110,210,low[13],high[13]);
  values[14]=mid[14];
  values[15]=mid[15];
- values[16]=map(height,110,210,low[16],high[16]);
+ values[16]=mid[16];
  for(var i=0;i<names.length;i++)mesh.morphTargetInfluences[i]=clamp((values[i]-mid[i])/(high[i]-low[i]),-.45,.55);
  if(smoothWeightIndex>=0)mesh.morphTargetInfluences[smoothWeightIndex]=clamp((w-52)/58,-.28,1);
 }
