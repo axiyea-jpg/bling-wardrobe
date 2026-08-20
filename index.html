@@ -245,6 +245,31 @@ body>main.stage~main.stage{display:none!important}
 .scenes .scene-park{background-position:33.333333% 0!important}
 .scenes .scene-bookstore{background-position:66.666667% 0!important}
 .scenes .scene-gallery{background-position:100% 0!important}
+</style><style id="batch-import-v1">
+.import-intro{margin:0 0 14px;color:#8e7774;font-size:13px;line-height:1.7}
+.import-source-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:14px 0}
+.import-source-card{min-height:118px;border:1px solid #efd8d1;border-radius:22px;background:linear-gradient(145deg,#fff,#fff5f0);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;padding:16px;color:#5c4745;text-align:center;cursor:pointer;box-shadow:0 8px 22px rgba(160,104,96,.07)}
+.import-source-card:hover{border-color:#eaa8ba;transform:translateY(-1px)}
+.import-source-card strong{font-size:16px}.import-source-card small{color:#a28b87;line-height:1.45}
+.import-source-icon{font-size:28px;color:#b45d7b;line-height:1}
+.import-note{margin:10px 0;padding:10px 12px;border-radius:14px;background:#fff6f3;color:#947c78;font-size:11px;line-height:1.6}
+.import-toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:12px 0}
+.import-toolbar .primary,.import-toolbar .soft-btn{width:auto;margin:0;padding:10px 15px}
+.import-progress{padding:12px;border:1px solid #f0d8d2;border-radius:14px;color:#8e7774;background:#fff;font-size:12px}
+.import-progress progress{display:block;width:100%;height:8px;margin-top:8px;accent-color:#b45d7b}
+.batch-link-textarea{width:100%;min-height:108px;box-sizing:border-box;margin:10px 0;border:1px solid #ecd5ce;border-radius:16px;padding:12px;resize:vertical;background:#fff;color:#5c4745;font:inherit}
+.batch-import-list{display:grid;gap:12px;max-height:min(58vh,580px);overflow:auto;padding:2px 3px 10px;margin-top:12px}
+.import-draft{display:grid;grid-template-columns:108px 1fr;gap:12px;padding:12px;border:1px solid #ecd8d2;border-radius:20px;background:#fff;box-shadow:0 5px 16px rgba(123,83,77,.05)}
+.draft-picture{width:108px;height:108px;border-radius:16px;background:linear-gradient(145deg,#fff3ef,#f8e8e5);background-size:cover;background-position:center;display:flex;align-items:center;justify-content:center;color:#ab8d89;font-size:11px;text-align:center;overflow:hidden}
+.draft-picture span{padding:12px;line-height:1.45}.draft-main{min-width:0}.draft-main>header{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px}.draft-main>header b{font-size:13px;color:#6a514d}.draft-remove{border:0;background:#fde8ed;color:#b54c6e;border-radius:999px;width:28px;height:28px;cursor:pointer}
+.draft-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}.draft-fields label{display:flex;align-items:center;gap:6px;border:1px solid #f0ded9;border-radius:11px;padding:6px 8px;background:#fffaf8;font-size:10px;color:#927b77;min-width:0}.draft-fields label:first-child{grid-column:1/-1}.draft-fields input,.draft-fields select{border:0;background:transparent;outline:0;color:#5e4946;font:inherit;min-width:0;width:100%;padding:0}.draft-status{display:block;margin-top:7px;color:#a1847f;font-size:10px;line-height:1.5}
+.import-footer{position:sticky;bottom:-1px;display:flex;justify-content:space-between;align-items:center;gap:10px;margin:12px -2px -2px;padding:12px 2px 2px;background:linear-gradient(transparent,#fff 25%)}
+.import-footer .primary{width:auto;margin:0;padding:11px 18px}.import-count{font-size:12px;color:#8f7672}
+.itempic.imported,.thumb.imported,.detail-hero.imported{background-size:cover!important;background-position:center!important;background-repeat:no-repeat!important;background-color:#fff4f0!important}
+.detail-source{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#a17873;font-size:11px;margin-top:8px}
+@media(max-width:520px){.import-source-grid{grid-template-columns:1fr 1fr;gap:8px}.import-source-card{min-height:104px;padding:12px 8px}.import-draft{grid-template-columns:82px 1fr;gap:9px;padding:9px}.draft-picture{width:82px;height:82px}.draft-fields{grid-template-columns:1fr}.draft-fields label:first-child{grid-column:auto}.batch-import-list{max-height:52vh}}
+
+
 </style></head><body><main class="stage"><div class="phone">
 
 <div class="screen">
@@ -431,6 +456,152 @@ openBodyEditor3D=function(){
  updateBMI();
  $('#saveHumanBody').onclick=()=>{const savedBody=read();localStorage.setItem('bling-body',JSON.stringify(savedBody));updateProfileStats();toast('身体数据已保存，个人档案已同步 ✦')};
 };
+/* Batch album and website import enhancement. */
+const importCategories=['上衣','外套','裤子','裙子','鞋','包','配饰','头巾'];
+const importSeasons=['春','夏','秋','冬','春夏','秋冬','四季'];
+let importDrafts=[];
+const importEsc=v=>String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const importBaseName=v=>decodeURIComponent(String(v||'').split(/[?#]/)[0].split(/[\\/]/).pop()||'').replace(/\.[a-z0-9]{2,5}$/i,'').replace(/[_-]+/g,' ').trim();
+function inferImportCategory(text){
+ const t=String(text||'').toLowerCase();
+ if(/头巾|丝巾|围巾|hijab|scarf|shawl/.test(t))return '头巾';
+ if(/外套|大衣|风衣|夹克|开衫|西装|羽绒|coat|jacket|cardigan|blazer|parka/.test(t))return '外套';
+ if(/裤|牛仔|打底裤|leggings|pants|jeans|trousers|shorts/.test(t))return '裤子';
+ if(/裙|dress|skirt|gown/.test(t))return '裙子';
+ if(/鞋|靴|乐福|凉鞋|拖鞋|sneaker|shoe|boot|loafer|sandal|heel/.test(t))return '鞋';
+ if(/包|手袋|背包|tote|bag|purse|clutch|backpack/.test(t))return '包';
+ if(/配饰|腰带|项链|耳环|手链|帽|眼镜|发夹|首饰|belt|necklace|earring|bracelet|hat|cap|glasses|jewelry/.test(t))return '配饰';
+ return '上衣';
+}
+function inferImportMaterial(text,category){
+ const t=String(text||'').toLowerCase();
+ if(/羊绒|cashmere/.test(t))return '羊绒';if(/羊毛|毛呢|wool/.test(t))return '羊毛';
+ if(/真丝|桑蚕丝|silk|缎/.test(t))return '丝质';if(/亚麻|linen/.test(t))return '亚麻';
+ if(/牛仔|denim/.test(t))return '牛仔';if(/针织|毛衣|knit/.test(t))return '针织';
+ if(/皮|革|leather|suede/.test(t))return '皮质';if(/雪纺|chiffon/.test(t))return '雪纺';
+ if(/棉|cotton/.test(t))return '棉质';
+ if(category==='鞋'||category==='包')return '柔软皮质';
+ if(category==='头巾')return '轻薄织物';
+ return '混纺';
+}
+function inferImportStyle(text,category){
+ const t=String(text||'').toLowerCase();
+ if(/通勤|office|work|西装/.test(t))return '通勤';if(/复古|vintage|retro/.test(t))return '复古';
+ if(/甜美|蝴蝶结|蕾丝|公主|sweet|lace/.test(t))return '甜美';if(/运动|sport|sneaker/.test(t))return '运动休闲';
+ if(/法式|french/.test(t))return '法式';if(/韩系|korean/.test(t))return '韩系';if(/日系|japanese/.test(t))return '日系';
+ if(category==='外套')return '简约通勤';if(category==='配饰'||category==='包')return '精致点缀';
+ return '日常简约';
+}
+function inferImportShape(category,text){
+ const t=String(text||'').toLowerCase();
+ if(/修身|slim|fitted/.test(t))return '修身';if(/宽松|oversize|loose/.test(t))return '宽松';
+ if(/短款|cropped/.test(t))return '短款';if(/高腰|high waist/.test(t))return '高腰';
+ return ({'上衣':'常规版型','外套':'舒适廓形','裤子':'顺直裤型','裙子':'自然裙摆','鞋':'舒适鞋型','包':'实用包型','配饰':'点缀单品','头巾':'轻盈垂感'})[category]||'常规版型';
+}
+function inferImportSeason(category,text){
+ const t=String(text||'').toLowerCase();
+ if(/羽绒|羊绒|羊毛|加绒|冬|winter/.test(t))return '冬';if(/凉鞋|短袖|吊带|夏|summer/.test(t))return '夏';
+ if(/风衣|针织|秋|autumn|fall/.test(t))return '秋';if(/春|spring/.test(t))return '春';
+ if(['包','配饰','头巾','鞋'].includes(category))return '四季';if(category==='外套')return '秋冬';return '春夏';
+}
+function rgbToImportColor(rgb){
+ if(!rgb)return '待确认';const [r,g,b]=rgb;const max=Math.max(r,g,b),min=Math.min(r,g,b),d=max-min;
+ if(max<58)return '黑色';if(max>232&&d<18)return '白色';if(d<18)return max<145?'深灰':'浅灰';
+ if(r>205&&g>175&&b>145&&d<65)return '奶油色';if(r>170&&g>120&&b>110&&r>b*1.12)return '粉色';
+ let h=0;if(d){if(max===r)h=((g-b)/d)%6;else if(max===g)h=(b-r)/d+2;else h=(r-g)/d+4;h=(h*60+360)%360}
+ if(h<15||h>=345)return '红色';if(h<42)return max<150?'棕色':'橙色';if(h<70)return '黄色';if(h<165)return '绿色';if(h<205)return '青色';if(h<255)return '蓝色';if(h<290)return '紫色';if(h<345)return '粉色';return '柔和混色';
+}
+function importDisplayName(source,category,color,material){
+ let n=importBaseName(source).replace(/\b(img|image|photo|dsc|pxl)[ _-]*\d+\b/ig,'').replace(/^\d{6,}$/,'').replace(/\s+/g,' ').trim();
+ if(n&&n.length>2&&n.length<30&&!/^[a-f0-9-]{12,}$/i.test(n))return n;
+ const noun=({'上衣':'上衣','外套':'外套','裤子':'长裤','裙子':'裙装','鞋':'鞋履','包':'包袋','配饰':'配饰','头巾':'头巾'})[category]||'单品';
+ return (color==='待确认'?'':color)+(material==='混纺'?'':material)+noun;
+}
+function analyzeImportText(source,rgb){
+ const category=inferImportCategory(source),color=rgbToImportColor(rgb),material=inferImportMaterial(source,category),style=inferImportStyle(source,category),shape=inferImportShape(category,source),season=inferImportSeason(category,source);
+ return {name:importDisplayName(source,category,color,material),category,season,color,material,style,shape};
+}
+const readImportFile=file=>new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(r.result);r.onerror=reject;r.readAsDataURL(file)});
+const loadImportImage=src=>new Promise((resolve,reject)=>{const img=new Image();img.onload=()=>resolve(img);img.onerror=()=>reject(new Error('图片无法读取'));img.src=src});
+async function cropAndAnalyzeImport(src){
+ const img=await loadImportImage(src),canvas=document.createElement('canvas'),size=512;canvas.width=size;canvas.height=size;
+ const ctx=canvas.getContext('2d',{willReadFrequently:true}),side=Math.min(img.naturalWidth||img.width,img.naturalHeight||img.height),sx=((img.naturalWidth||img.width)-side)/2,sy=((img.naturalHeight||img.height)-side)/2;
+ ctx.fillStyle='#fffaf6';ctx.fillRect(0,0,size,size);ctx.drawImage(img,sx,sy,side,side,0,0,size,size);
+ const sample=document.createElement('canvas');sample.width=40;sample.height=40;const sc=sample.getContext('2d',{willReadFrequently:true});sc.drawImage(canvas,0,0,40,40);const data=sc.getImageData(0,0,40,40).data;
+ let r=0,g=0,b=0,n=0;for(let i=0;i<data.length;i+=4){const rr=data[i],gg=data[i+1],bb=data[i+2],mx=Math.max(rr,gg,bb),mn=Math.min(rr,gg,bb);if(data[i+3]<180||mx>246&&mx-mn<12||mx<25)continue;r+=rr;g+=gg;b+=bb;n++}
+ return {image:canvas.toDataURL('image/jpeg',.84),rgb:n?[Math.round(r/n),Math.round(g/n),Math.round(b/n)]:null};
+}
+function renderImportDrafts(){
+ const host=$('#importWorkspace');if(!host)return;
+ if(!importDrafts.length){host.innerHTML='<p class="import-note">选择照片或添加链接后，识别结果会先出现在这里。确认无误再统一加入衣橱。</p>';return}
+ host.innerHTML='<div class="batch-import-list">'+importDrafts.map((d,i)=>'<article class="import-draft"><div class="draft-picture" '+(d.image?'style="background-image:url(\''+d.image+'\')"':'')+'>'+(d.image?'':'<span>'+(d.needImage?'网页图片受限<br>可补充照片':'等待图片')+'</span>')+'</div><div class="draft-main"><header><b>单品 '+(i+1)+'</b><button class="draft-remove" data-remove-draft="'+i+'" aria-label="移除">×</button></header><div class="draft-fields"><label>名称<input data-draft-field="name" data-draft-index="'+i+'" value="'+importEsc(d.name)+'"></label><label>品类<select data-draft-field="category" data-draft-index="'+i+'">'+importCategories.map(x=>'<option '+(x===d.category?'selected':'')+'>'+x+'</option>').join('')+'</select></label><label>季节<select data-draft-field="season" data-draft-index="'+i+'">'+importSeasons.map(x=>'<option '+(x===d.season?'selected':'')+'>'+x+'</option>').join('')+'</select></label><label>色系<input data-draft-field="color" data-draft-index="'+i+'" value="'+importEsc(d.color)+'"></label><label>材质<input data-draft-field="material" data-draft-index="'+i+'" value="'+importEsc(d.material)+'"></label><label>风格<input data-draft-field="style" data-draft-index="'+i+'" value="'+importEsc(d.style)+'"></label><label>版型<input data-draft-field="shape" data-draft-index="'+i+'" value="'+importEsc(d.shape)+'"></label></div><small class="draft-status">'+(d.needImage?'已识别链接文字；网站限制读取原图，请补充照片以生成清晰方图。':'已自动居中裁剪并生成标签，可直接修改。')+'</small></div></article>').join('')+'</div><div class="import-footer"><span class="import-count">待导入 '+importDrafts.length+' 件</span><button class="primary" id="confirmBatchImport">确认加入衣橱</button></div>';
+}
+function showImportProgress(label,current,total){const host=$('#importWorkspace');if(host)host.innerHTML='<div class="import-progress">'+importEsc(label)+' '+current+'/'+total+'<progress max="'+total+'" value="'+current+'"></progress></div>'}
+async function processAlbumFiles(files,append){
+ const list=[...files].filter(f=>f.type.startsWith('image/'));if(!list.length)return toast('请选择图片文件');if(!append)importDrafts=[];
+ for(let i=0;i<list.length;i++){showImportProgress('正在裁剪并分析照片',i+1,list.length);try{const src=await readImportFile(list[i]),pic=await cropAndAnalyzeImport(src),meta=analyzeImportText(list[i].name,pic.rgb);importDrafts.push({...meta,image:pic.image,source:'相册：'+list[i].name,needImage:false})}catch(e){const meta=analyzeImportText(list[i].name,null);importDrafts.push({...meta,image:'',source:'相册：'+list[i].name,needImage:true})}}
+ renderImportDrafts();toast('已生成 '+list.length+' 件单品草稿 ✦');
+}
+function parseImportLinks(value){return [...new Set(String(value||'').split(/[\n\r,，]+/).map(x=>x.trim()).filter(x=>/^https?:\/\//i.test(x)))]}
+async function fetchImportLink(url){
+ let source=url,title='';
+ try{const u=new URL(url),direct=/\.(png|jpe?g|webp|gif)(\?|$)/i.test(u.pathname);if(direct){const res=await fetch(url,{mode:'cors'});if(!res.ok)throw new Error('图片请求失败');const blob=await res.blob(),src=await readImportFile(new File([blob],'link-image.'+(blob.type.split('/')[1]||'jpg'),{type:blob.type})),pic=await cropAndAnalyzeImport(src),meta=analyzeImportText(url,pic.rgb);return {...meta,image:pic.image,source:url,needImage:false}}
+  const res=await fetch(url,{mode:'cors'});if(!res.ok)throw new Error('网页请求失败');const html=await res.text(),doc=new DOMParser().parseFromString(html,'text/html');title=(doc.querySelector('meta[property="og:title"]')?.content||doc.title||'').trim();const raw=doc.querySelector('meta[property="og:image"]')?.content||doc.querySelector('meta[name="twitter:image"]')?.content||'';
+  if(raw){const imageUrl=new URL(raw,url).href,ir=await fetch(imageUrl,{mode:'cors'});if(!ir.ok)throw new Error('商品图请求失败');const blob=await ir.blob(),src=await readImportFile(new File([blob],'product-image.jpg',{type:blob.type||'image/jpeg'})),pic=await cropAndAnalyzeImport(src),meta=analyzeImportText(title+' '+url,pic.rgb);meta.name=importDisplayName(title||url,meta.category,meta.color,meta.material);return {...meta,image:pic.image,source:url,needImage:false}}
+ }catch(e){}
+ const meta=analyzeImportText((title?title+' ':'')+source,null);meta.name=importDisplayName(title||source,meta.category,meta.color,meta.material);return {...meta,image:'',source:url,needImage:true};
+}
+async function processImportLinks(value){
+ const links=parseImportLinks(value);if(!links.length)return toast('请每行粘贴一个有效网址');importDrafts=[];
+ for(let i=0;i<links.length;i++){showImportProgress('正在分析商品链接',i+1,links.length);importDrafts.push(await fetchImportLink(links[i]))}
+ renderImportDrafts();toast('已生成 '+links.length+' 件链接草稿 ✦');
+}
+function openImportHub(mode){
+ importDrafts=[];$('#modalBody').innerHTML='<h2>批量导入衣服</h2><p class="import-intro">一次选择多张不同品类的衣服照片。布灵会生成清晰方图、名称、季节、品类、色系、材质、风格与版型，导入前都可修改。</p><div class="import-source-grid"><label class="import-source-card"><input id="batchAlbumInput" type="file" accept="image/*" multiple hidden><span class="import-source-icon">▣</span><strong>从相册批量选择</strong><small>支持一次选择多张照片</small></label><button class="import-source-card" id="openLinkBatch"><span class="import-source-icon">↗</span><strong>从网站链接导入</strong><small>一行一个商品或图片链接</small></button></div><p class="import-note">照片会在当前设备中裁剪和分析，并保存在本地衣橱。识别不准确时，可在确认区或单品详情里继续修改。</p><div id="importWorkspace"></div>';$('#modal').classList.add('show');renderImportDrafts();if(mode==='link')setTimeout(()=>$('#openLinkBatch')?.click(),0);
+}
+openModal=function(type){
+ if(type==='import')return openImportHub('link');
+ if(type==='add'){$('#modalBody').innerHTML='<h2>添加到布灵布灵</h2><label class="opt"><input id="quickAlbumInput" type="file" accept="image/*" multiple hidden><i class="icon i-add"></i><span><b>从相册批量导入</b><br><small>一次选择多件，自动裁剪并生成信息</small></span></label><button class="opt" id="quickLinkImport"><i class="icon i-link"></i><span><b>从网站链接导入</b><br><small>支持多条商品或图片链接</small></span></button><button class="opt" data-camera="1"><i class="icon i-camera"></i><span><b>扫描现有衣服</b><br><small>打开相机拍摄单件衣服</small></span></button>';$('#modal').classList.add('show');return}
+ openImportHub();
+};
+function showImportLinkPanel(){
+ $('#importWorkspace').innerHTML='<textarea class="batch-link-textarea" id="batchProductLinks" placeholder="每行粘贴一个商品链接或图片链接…"></textarea><div class="import-toolbar"><button class="primary" id="analyzeBatchLinks">分析这些链接</button><label class="soft-btn">补充商品照片<input id="supplementLinkImages" type="file" accept="image/*" multiple hidden></label></div><p class="import-note">部分购物网站会禁止外部网页读取商品图。遇到这种情况，链接文字仍会生成草稿，你可以选择对应照片补齐清晰图片。</p>';
+}
+$('#modalBody').addEventListener('change',async e=>{
+ if(e.target.id==='quickAlbumInput'){openImportHub();await processAlbumFiles(e.target.files,false)}
+ if(e.target.id==='batchAlbumInput')await processAlbumFiles(e.target.files,false);
+ if(e.target.id==='supplementLinkImages'){
+  const files=[...e.target.files].filter(f=>f.type.startsWith('image/')),missing=importDrafts.map((d,i)=>d.image?null:i).filter(i=>i!=null);for(let n=0;n<files.length&&n<missing.length;n++){showImportProgress('正在补充商品照片',n+1,files.length);try{const src=await readImportFile(files[n]),pic=await cropAndAnalyzeImport(src),i=missing[n],meta=analyzeImportText(files[n].name,pic.rgb);importDrafts[i]={...importDrafts[i],image:pic.image,color:meta.color,needImage:false}}catch(x){}}renderImportDrafts();toast('商品照片已补充 ✦')
+ }
+});
+$('#modalBody').addEventListener('input',e=>{const i=+e.target.dataset.draftIndex,f=e.target.dataset.draftField;if(f&&importDrafts[i])importDrafts[i][f]=e.target.value});
+$('#modalBody').addEventListener('click',async e=>{
+ if(e.target.closest('#quickLinkImport'))return openImportHub('link');
+ if(e.target.closest('#openLinkBatch'))return showImportLinkPanel();
+ if(e.target.closest('#analyzeBatchLinks'))return processImportLinks($('#batchProductLinks')?.value||'');
+ const remove=e.target.closest('[data-remove-draft]');if(remove){importDrafts.splice(+remove.dataset.removeDraft,1);renderImportDrafts();return}
+ if(e.target.closest('#confirmBatchImport')){
+  if(!importDrafts.length)return toast('还没有可导入的单品');const a=items.length,b=seasons.length,c=itemMeta.length;
+  importDrafts.forEach(d=>{items.push([d.name||'未命名单品',d.category||'上衣',d.image?'imported':'p1',d.image||'',d.source||'']);seasons.push(d.season||'四季');itemMeta.push([d.color||'待确认',d.material||'待确认',d.style||'日常',d.shape||'常规版型'])});
+  try{saveWardrobe()}catch(err){items.splice(a);seasons.splice(b);itemMeta.splice(c);return toast('照片较多，本地空间不足；请减少数量后分批导入')}
+  categoryOverviewMode=false;category='全部';activeSeason='';if($('#seasonSelect'))$('#seasonSelect').value='';wardrobePage=1;render();$('#modal').classList.remove('show');toast('已加入衣橱 '+importDrafts.length+' 件 ✦');importDrafts=[];
+ }
+});
+const renderBeforeBatchImport=render;
+render=function(){
+ renderBeforeBatchImport();
+ $('#itemGrid .item-main').forEach(btn=>{const raw=btn.dataset.item!=null?btn.dataset.item:btn.dataset.selectItem,i=+raw,x=items[i],pic=btn.querySelector('.itempic');if(x&&x[3]&&pic)pic.style.backgroundImage='url("'+x[3]+'")'});
+ $('#tray [data-wear]').forEach(btn=>{const x=items[+btn.dataset.wear],pic=btn.querySelector('.thumb');if(x&&x[3]&&pic)pic.style.backgroundImage='url("'+x[3]+'")'});
+};
+editItemInfo=function(i){
+ const x=items[i],m=itemMeta[i]||['','','',''];$('#modalBody').innerHTML='<h2>编辑单品信息</h2><div class="measure-grid"><div class="measure-field"><label>名称</label><input id="editName" value="'+importEsc(x[0])+'"></div><div class="measure-field"><label>分类</label><select id="editCat">'+importCategories.map(v=>'<option '+(v===x[1]?'selected':'')+'>'+v+'</option>').join('')+'</select></div><div class="measure-field"><label>季节</label><select id="editSeason">'+importSeasons.map(v=>'<option '+(v===(seasons[i]||'四季')?'selected':'')+'>'+v+'</option>').join('')+'</select></div><div class="measure-field"><label>色系</label><input id="editColor" value="'+importEsc(m[0])+'"></div><div class="measure-field"><label>材质</label><input id="editTexture" value="'+importEsc(m[1])+'"></div><div class="measure-field"><label>风格</label><input id="editStyle" value="'+importEsc(m[2])+'"></div><div class="measure-field"><label>版型</label><input id="editShape" value="'+importEsc(m[3]||'常规版型')+'"></div></div><button class="primary" id="saveItemEditV2">保存修改</button>';$('#modal').classList.add('show');$('#saveItemEditV2').onclick=()=>{x[0]=$('#editName').value.trim()||x[0];x[1]=$('#editCat').value;seasons[i]=$('#editSeason').value;itemMeta[i]=[$('#editColor').value.trim()||'待确认',$('#editTexture').value.trim()||'待确认',$('#editStyle').value.trim()||'日常',$('#editShape').value.trim()||'常规版型'];saveWardrobe();render();$('#modal').classList.remove('show');toast('单品信息已更新 ✦')};
+};
+openItem=function(i){
+ const x=items[i],m=itemMeta[i]||['自动识别','待补充','日常','常规版型'],imageStyle=x[3]?' style="background-image:url(\''+x[3]+'\')"':'';$('#subTitle').textContent=x[0];$('#subContent').innerHTML='<div class="detail-hero '+x[2]+'"'+imageStyle+'></div><div class="detail-info"><h2>'+importEsc(x[0])+'</h2><div class="auto-tags">'+m.map(t=>'<em>'+importEsc(t)+'</em>').join('')+'<em>'+importEsc(seasons[i]||'四季')+'</em></div><p>这些信息由布灵在录入时自动识别，你可以随时编辑。</p>'+(x[4]?'<span class="detail-source" title="'+importEsc(x[4])+'">来源：'+importEsc(x[4])+'</span>':'')+'</div><div class="options"><button data-wear="'+i+'"><b>加入当前穿搭</b><small>在试衣间查看效果</small></button><button data-edit-item="'+i+'"><b>编辑名称与标签</b><small>修改品类、季节、色系、材质、风格与版型</small></button><button class="danger" data-delete-item="'+i+'"><b>从衣橱移除</b><small>删除这件单品</small></button></div>';$('#overlay').classList.add('show');
+};
+render();
+
+
 })();
 </script></body></html>
 
