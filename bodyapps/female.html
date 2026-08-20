@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
 <title>布灵女性身形模型</title><style>
-*{box-sizing:border-box}html,body,#stage{width:100%;height:100%;margin:0;overflow:hidden;background:#12161c}canvas{display:block;touch-action:none}
+*{box-sizing:border-box}html,body,#stage{width:100%;height:100%;margin:0;overflow:hidden;background:#152234}canvas{display:block;touch-action:none}
 #status{position:absolute;inset:0;display:grid;place-items:center;color:#d9ecff;font:14px system-ui;background:#12161c;z-index:3}
 #hint{position:absolute;left:9px;right:auto;bottom:8px;padding:4px 7px;border-radius:8px;background:#0a0d12a8;color:#dbeaffc9;font:10px system-ui;pointer-events:none}
 #credit{position:absolute;right:10px;top:8px;color:#c8dcf080;font:9px system-ui;text-decoration:none}
@@ -750,12 +750,12 @@ var stage=document.getElementById('stage'), status=document.getElementById('stat
 if(!window.THREE){status.textContent='3D 组件加载失败';return}
 var scene=new THREE.Scene(),camera=new THREE.PerspectiveCamera(27,stage.clientWidth/stage.clientHeight,1,100000);
 camera.position.set(0,2950,4200);
-var renderer=new THREE.WebGLRenderer({antialias:true,alpha:false});renderer.setClearColor(0x12161c,1);renderer.setSize(stage.clientWidth,stage.clientHeight);stage.appendChild(renderer.domElement);
-scene.add(new THREE.HemisphereLight(0xb8d7ef,0x07101c,.48));
-var key=new THREE.DirectionalLight(0xdceeff,.92);key.position.set(5,8,7);scene.add(key);
-var fill=new THREE.DirectionalLight(0x397fbd,.20);fill.position.set(-5,2,4);scene.add(fill);
-var rim=new THREE.DirectionalLight(0x5e9bd2,.42);rim.position.set(3,4,-5);scene.add(rim);
-var root=new THREE.Object3D(),mesh=null,angle=0,targetY=2850,distance=4200,minDistance=3600,maxDistance=5000,drag=false,lastX=0,idleAt=Date.now();
+var renderer=new THREE.WebGLRenderer({antialias:true,alpha:false});renderer.setClearColor(0x152234,1);renderer.setSize(stage.clientWidth,stage.clientHeight);stage.appendChild(renderer.domElement);
+scene.add(new THREE.HemisphereLight(0xc9e4f5,0x0b1726,.68));
+var key=new THREE.DirectionalLight(0xe9f5ff,1.08);key.position.set(5,8,7);scene.add(key);
+var fill=new THREE.DirectionalLight(0x4c91c8,.32);fill.position.set(-5,2,4);scene.add(fill);
+var rim=new THREE.DirectionalLight(0x8bd4ff,.82);rim.position.set(3,4,-5);scene.add(rim);
+var root=new THREE.Object3D(),mesh=null,material=null,angle=0,targetY=2850,distance=4200,minDistance=3600,maxDistance=5000,drag=false,lastX=0,idleAt=Date.now();
 scene.add(root);
 var names=["Height","Neck Height","Neck","Shoulders","Shoulder Angle","Breast","Bust Girth","Arm Length","Upper Arm Girth","Wrist","Stomach Form","Waist","Hip Girth","Hip Height","Thigh Girth","Calf Girth","lower Leg"];
 var mid=[155,7,31,14,1,85,66,23,27,14,1,75,100,82,58,36,45], low=[110,5,27,12,0,70,56,16,22,9,0,65,86,72,49,26,39], high=[210,9,35,16,2,100,76,27,32,18,2,85,114,92,66,44,53];
@@ -791,7 +791,7 @@ function apply(){
 }
 new THREE.JSONLoader().load('https://raw.githubusercontent.com/OpnTec/bodyapps-viz/master/models/skinned/UCS/female.js',function(geometry){
  geometry.computeBoundingBox();lowerArms(geometry);
- var material=new THREE.MeshPhongMaterial({color:0x5598cf,ambient:0x101923,specular:0x78a9c9,shininess:12,morphTargets:true,side:THREE.DoubleSide});
+ material=new THREE.MeshPhongMaterial({color:0x6daed8,ambient:0x152a3d,specular:0xa8d8ef,shininess:18,morphTargets:true,side:THREE.DoubleSide});
  mesh=new THREE.Mesh(geometry,material);root.add(mesh);root.scale.set(70,70,70);
  root.position.y=2400-geometry.boundingBox.min.y*70;root.position.z=100;fitWholeBody(geometry);
  apply();status.style.display='none';
@@ -805,7 +805,7 @@ renderer.domElement.addEventListener('touchstart',function(e){if(e.touches.lengt
 renderer.domElement.addEventListener('touchmove',function(e){if(e.touches.length===1)pointerMove(e.touches[0].clientX);if(e.touches.length===2){var n=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);distance=clamp(distance-(n-lastX)*8,minDistance,maxDistance);lastX=n;idleAt=Date.now()}},{passive:true});
 renderer.domElement.addEventListener('touchend',function(){drag=false});
 renderer.domElement.addEventListener('wheel',function(e){e.preventDefault();distance=clamp(distance+e.deltaY*2.5,minDistance,maxDistance);idleAt=Date.now()},{passive:false});
-window.addEventListener('message',function(e){var m=e.data||{};if(m.type==='bodyapps-update'){current=m.values||current;apply()}if(m.type==='bodyapps-angle'){angle=(+m.angle||0)*Math.PI/180;idleAt=Date.now()}});
+window.addEventListener('message',function(e){var m=e.data||{};if(m.type==='bodyapps-update'){current=m.values||current;apply()}if(m.type==='bodyapps-angle'){angle=(+m.angle||0)*Math.PI/180;idleAt=Date.now()}if(m.type==='bodyapps-color'&&material){var hue=((+m.hue||0)%360+360)%360/360;material.color.setHSL(hue,.52,.56);material.ambient.setHSL(hue,.48,.18);material.specular.setHSL(hue,.34,.72);material.needsUpdate=true}});
 window.addEventListener('resize',function(){camera.aspect=stage.clientWidth/stage.clientHeight;camera.updateProjectionMatrix();renderer.setSize(stage.clientWidth,stage.clientHeight);if(mesh)fitWholeBody(mesh.geometry)});
 function loop(){requestAnimationFrame(loop);setCamera();renderer.render(scene,camera)}loop();
 parent.postMessage({type:'bodyapps-ready'},'*');
