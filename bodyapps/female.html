@@ -776,7 +776,7 @@ function softenPrivateAreas(geometry){
    var px=cx,py=b.min.y+h*.505,rx=w*.050,ry=h*.034,target=ringTarget(list,px,py,rx,ry);if(target===null)return;
    for(var i=0;i<list.length;i++){var v=list[i];if(v.z<=cz||v.z>=target)continue;var dx=(v.x-px)/rx,dy=(v.y-py)/ry,d=Math.sqrt(dx*dx+dy*dy);if(d<1){var t=.82*Math.pow(1-d,1.4);v.z=v.z*(1-t)+target*t}}
  }
- function soften(list){removeNipple(list,cx-w*.151,b.min.y+h*.732);removeNipple(list,cx+w*.151,b.min.y+h*.732);removeGroove(list)}
+ function soften(list){removeNipple(list,cx-w*.145,b.min.y+h*.720);removeNipple(list,cx+w*.145,b.min.y+h*.720);removeGroove(list)}
  soften(geometry.vertices);for(var m=0;m<geometry.morphTargets.length;m++)soften(geometry.morphTargets[m].vertices);
  geometry.computeBoundingBox();geometry.computeVertexNormals();
 }
