@@ -759,26 +759,31 @@ var root=new THREE.Object3D(),mesh=null,material=null,angle=0,targetY=2850,dista
 scene.add(root);
 var names=["Height","Neck Height","Neck","Shoulders","Shoulder Angle","Breast","Bust Girth","Arm Length","Upper Arm Girth","Wrist","Stomach Form","Waist","Hip Girth","Hip Height","Thigh Girth","Calf Girth","lower Leg"];
 var mid=[155,7,31,14,1,85,66,23,27,14,1,75,100,82,58,36,45], low=[110,5,27,12,0,70,56,16,22,9,0,65,86,72,49,26,39], high=[210,9,35,16,2,100,76,27,32,18,2,85,114,92,66,44,53];
-var current={height:162,weight:52,shoulder:38,bust:84,waist:66,hip:92};
+var current={height:162,weight:52,shoulder:38,bust:84,waist:66,hip:92},smoothWeightIndex=-1;
 function clamp(v,a,b){return Math.max(a,Math.min(b,v))}
 function map(v,a,b,c,d){return c+(clamp(v,a,b)-a)*(d-c)/(b-a)}
 function softenPrivateAreas(geometry){
  geometry.computeBoundingBox();var b=geometry.boundingBox,w=b.max.x-b.min.x,h=b.max.y-b.min.y,cx=(b.min.x+b.max.x)/2,cz=(b.min.z+b.max.z)/2;
- function ringTarget(list,px,py,rx,ry){
-   var ring=[],i,v,dx,dy,d;for(i=0;i<list.length;i++){v=list[i];if(v.z<=cz)continue;dx=(v.x-px)/rx;dy=(v.y-py)/ry;d=Math.sqrt(dx*dx+dy*dy);if(d>=1&&d<=1.65)ring.push(v.z)}
-   if(!ring.length)return null;ring.sort(function(a,b){return a-b});return ring[Math.floor(ring.length*.58)]
+ var neighbors=[];for(var i=0;i<geometry.vertices.length;i++)neighbors[i]=[];
+ for(i=0;i<geometry.faces.length;i++){var f=geometry.faces[i],ids=[f.a,f.b,f.c];for(var a=0;a<3;a++)for(var q=0;q<3;q++)if(a!==q&&neighbors[ids[a]].indexOf(ids[q])<0)neighbors[ids[a]].push(ids[q])}
+ function smoothChest(list){
+   for(var pass=0;pass<10;pass++){var next=[];for(var j=0;j<list.length;j++){var v=list[j],ny=(v.y-b.min.y)/h,nx=Math.abs(v.x-cx)/w;if(v.z>cz&&ny>.675&&ny<.775&&nx<.265&&neighbors[j].length){var sum=0;for(var k=0;k<neighbors[j].length;k++)sum+=list[neighbors[j][k]].z;var avg=sum/neighbors[j].length,edge=Math.min((ny-.675)/.035,(.775-ny)/.035,1),front=Math.min(1,(v.z-cz)/(w*.055));next[j]=v.z+(avg-v.z)*.62*Math.max(0,edge)*Math.max(.25,front)}else next[j]=v.z}for(j=0;j<list.length;j++)list[j].z=next[j]}
  }
- function removeNipple(list,px,py){
-   var rx=w*.027,ry=h*.018,target=ringTarget(list,px,py,rx,ry);if(target===null)return;
-   for(var i=0;i<list.length;i++){var v=list[i];if(v.z<=cz)continue;var dx=(v.x-px)/rx,dy=(v.y-py)/ry,d=Math.sqrt(dx*dx+dy*dy);if(d<1){var t=.98*Math.pow(1-d,1.1);v.z=v.z*(1-t)+target*t}}
- }
- function removeGroove(list){
-   var px=cx,py=b.min.y+h*.505,rx=w*.050,ry=h*.034,target=ringTarget(list,px,py,rx,ry);if(target===null)return;
-   for(var i=0;i<list.length;i++){var v=list[i];if(v.z<=cz||v.z>=target)continue;var dx=(v.x-px)/rx,dy=(v.y-py)/ry,d=Math.sqrt(dx*dx+dy*dy);if(d<1){var t=.82*Math.pow(1-d,1.4);v.z=v.z*(1-t)+target*t}}
- }
- function soften(list){removeNipple(list,cx-w*.145,b.min.y+h*.720);removeNipple(list,cx+w*.145,b.min.y+h*.720);removeGroove(list)}
+ function smoothGroove(list){var py=b.min.y+h*.505,rx=w*.05,ry=h*.034,ring=[];for(var j=0;j<list.length;j++){var v=list[j],dx=(v.x-cx)/rx,dy=(v.y-py)/ry,d=Math.sqrt(dx*dx+dy*dy);if(v.z>cz&&d>1&&d<1.7)ring.push(v.z)}if(!ring.length)return;ring.sort(function(a,b){return a-b});var target=ring[Math.floor(ring.length*.55)];for(j=0;j<list.length;j++){v=list[j];dx=(v.x-cx)/rx;dy=(v.y-py)/ry;d=Math.sqrt(dx*dx+dy*dy);if(v.z>cz&&v.z<target&&d<1){var t=.8*Math.pow(1-d,1.4);v.z=v.z*(1-t)+target*t}}}
+ function soften(list){smoothChest(list);smoothGroove(list)}
  soften(geometry.vertices);for(var m=0;m<geometry.morphTargets.length;m++)soften(geometry.morphTargets[m].vertices);
  geometry.computeBoundingBox();geometry.computeVertexNormals();
+}
+function addSmoothWeightMorph(geometry){
+ geometry.computeBoundingBox();var b=geometry.boundingBox,w=b.max.x-b.min.x,h=b.max.y-b.min.y,cx=(b.min.x+b.max.x)/2,cz=(b.min.z+b.max.z)/2;
+ function smoothstep(a,b,x){x=Math.max(0,Math.min(1,(x-a)/(b-a)));return x*x*(3-2*x)}
+ var verts=[];for(var i=0;i<geometry.vertices.length;i++){var v=geometry.vertices[i].clone(),ny=(v.y-b.min.y)/h,nx=Math.abs(v.x-cx)/w;
+   if(ny>.055&&ny<.585&&nx<.30){var side=v.x<cx?-1:1,legCenter=cx+side*w*.105,pelvis=smoothstep(.43,.585,ny),center=legCenter*(1-pelvis)+cx*pelvis;
+     var calf=smoothstep(.055,.15,ny)*(1-smoothstep(.285,.36,ny)),thigh=smoothstep(.275,.39,ny)*(1-smoothstep(.54,.585,ny));
+     var profile=.22*calf+.35*thigh+.14*smoothstep(.42,.50,ny);
+     v.x=center+(v.x-center)*(1+profile);v.z=cz+(v.z-cz)*(1+profile*.78)}
+   verts.push(v)}
+ smoothWeightIndex=geometry.morphTargets.length;geometry.morphTargets.push({name:'Smooth Weight',vertices:verts});
 }
 function lowerArms(geometry){
  geometry.computeBoundingBox();var b=geometry.boundingBox,w=b.max.x-b.min.x,h=b.max.y-b.min.y,px=w*.18,py=b.min.y+h*.76,limit=w*.20;
@@ -810,13 +815,14 @@ function apply(){
  values[11]=clamp(+current.waist||75,low[11],high[11]);
  values[12]=clamp(+current.hip||100,low[12],high[12]);
  values[13]=map(height,110,210,low[13],high[13]);
- values[14]=mid[14]+clamp(bodyT-.36,-.30,.38)*(high[14]-low[14]);
- values[15]=mid[15]+clamp(bodyT-.36,-.28,.34)*(high[15]-low[15]);
+ values[14]=mid[14];
+ values[15]=mid[15];
  values[16]=map(height,110,210,low[16],high[16]);
  for(var i=0;i<names.length;i++)mesh.morphTargetInfluences[i]=clamp((values[i]-mid[i])/(high[i]-low[i]),-.45,.55);
+ if(smoothWeightIndex>=0)mesh.morphTargetInfluences[smoothWeightIndex]=clamp((w-52)/58,-.28,1);
 }
 new THREE.JSONLoader().load('https://raw.githubusercontent.com/OpnTec/bodyapps-viz/master/models/skinned/UCS/female.js',function(geometry){
- geometry.computeBoundingBox();lowerArms(geometry);softenPrivateAreas(geometry);
+ geometry.computeBoundingBox();lowerArms(geometry);softenPrivateAreas(geometry);addSmoothWeightMorph(geometry);
  material=new THREE.MeshPhongMaterial({color:0x7674d2,ambient:0x23213f,specular:0x302f50,shininess:4,morphTargets:true,skinning:false,side:THREE.DoubleSide});
  mesh=new THREE.SkinnedMesh(geometry,material);root.add(mesh);root.scale.set(70,70,70);
  root.position.y=2400-geometry.boundingBox.min.y*70;root.position.z=100;fitWholeBody(geometry);
