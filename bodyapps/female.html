@@ -764,17 +764,19 @@ function clamp(v,a,b){return Math.max(a,Math.min(b,v))}
 function map(v,a,b,c,d){return c+(clamp(v,a,b)-a)*(d-c)/(b-a)}
 function softenPrivateAreas(geometry){
  geometry.computeBoundingBox();var b=geometry.boundingBox,w=b.max.x-b.min.x,h=b.max.y-b.min.y,cx=(b.min.x+b.max.x)/2,cz=(b.min.z+b.max.z)/2;
- function removeDetail(list,px,py,rx,ry){
-   var ring=[],i,v,dx,dy,d,target,t;
-   for(i=0;i<list.length;i++){v=list[i];if(v.z<=cz)continue;dx=(v.x-px)/rx;dy=(v.y-py)/ry;d=Math.sqrt(dx*dx+dy*dy);if(d>=1&&d<=1.8)ring.push(v.z)}
-   if(!ring.length)return;ring.sort(function(a,b){return a-b});target=ring[Math.floor(ring.length*.5)];
-   for(i=0;i<list.length;i++){v=list[i];if(v.z<=cz)continue;dx=(v.x-px)/rx;dy=(v.y-py)/ry;d=Math.sqrt(dx*dx+dy*dy);if(d<1){t=.88*Math.pow(1-d,1.7);v.z=v.z*(1-t)+target*t}}
+ function ringTarget(list,px,py,rx,ry){
+   var ring=[],i,v,dx,dy,d;for(i=0;i<list.length;i++){v=list[i];if(v.z<=cz)continue;dx=(v.x-px)/rx;dy=(v.y-py)/ry;d=Math.sqrt(dx*dx+dy*dy);if(d>=1&&d<=1.65)ring.push(v.z)}
+   if(!ring.length)return null;ring.sort(function(a,b){return a-b});return ring[Math.floor(ring.length*.58)]
  }
- function soften(list){
-   removeDetail(list,cx-w*.145,b.min.y+h*.755,w*.030,h*.022);
-   removeDetail(list,cx+w*.145,b.min.y+h*.755,w*.030,h*.022);
-   removeDetail(list,cx,b.min.y+h*.490,w*.045,h*.032);
+ function removeNipple(list,px,py){
+   var rx=w*.046,ry=h*.030,target=ringTarget(list,px,py,rx,ry);if(target===null)return;
+   for(var i=0;i<list.length;i++){var v=list[i];if(v.z<=target)continue;var dx=(v.x-px)/rx,dy=(v.y-py)/ry,d=Math.sqrt(dx*dx+dy*dy);if(d<1){var t=.96*Math.pow(1-d,1.25);v.z=v.z*(1-t)+target*t}}
  }
+ function removeGroove(list){
+   var px=cx,py=b.min.y+h*.490,rx=w*.050,ry=h*.034,target=ringTarget(list,px,py,rx,ry);if(target===null)return;
+   for(var i=0;i<list.length;i++){var v=list[i];if(v.z<=cz||v.z>=target)continue;var dx=(v.x-px)/rx,dy=(v.y-py)/ry,d=Math.sqrt(dx*dx+dy*dy);if(d<1){var t=.82*Math.pow(1-d,1.4);v.z=v.z*(1-t)+target*t}}
+ }
+ function soften(list){removeNipple(list,cx-w*.145,b.min.y+h*.755);removeNipple(list,cx+w*.145,b.min.y+h*.755);removeGroove(list)}
  soften(geometry.vertices);for(var m=0;m<geometry.morphTargets.length;m++)soften(geometry.morphTargets[m].vertices);
  geometry.computeBoundingBox();geometry.computeVertexNormals();
 }
@@ -808,9 +810,9 @@ function apply(){
  values[11]=clamp(+current.waist||75,low[11],high[11]);
  values[12]=clamp(+current.hip||100,low[12],high[12]);
  values[13]=map(height,110,210,low[13],high[13]);
- values[14]=bodyValue(14);
- values[15]=bodyValue(15);
- values[16]=bodyValue(16);
+ values[14]=mid[14]+clamp(bodyT-.36,-.30,.38)*(high[14]-low[14]);
+ values[15]=mid[15]+clamp(bodyT-.36,-.28,.34)*(high[15]-low[15]);
+ values[16]=map(height,110,210,low[16],high[16]);
  for(var i=0;i<names.length;i++)mesh.morphTargetInfluences[i]=clamp((values[i]-mid[i])/(high[i]-low[i]),-.45,.55);
 }
 new THREE.JSONLoader().load('https://raw.githubusercontent.com/OpnTec/bodyapps-viz/master/models/skinned/UCS/female.js',function(geometry){
