@@ -764,12 +764,17 @@ function clamp(v,a,b){return Math.max(a,Math.min(b,v))}
 function map(v,a,b,c,d){return c+(clamp(v,a,b)-a)*(d-c)/(b-a)}
 function softenPrivateAreas(geometry){
  geometry.computeBoundingBox();var b=geometry.boundingBox,w=b.max.x-b.min.x,h=b.max.y-b.min.y,cx=(b.min.x+b.max.x)/2,cz=(b.min.z+b.max.z)/2;
- function gauss(v,c,r){var d=(v-c)/r;return Math.exp(-d*d)}
- function soften(list){for(var i=0;i<list.length;i++){var v=list[i];if(v.z<=cz)continue;var y=(v.y-b.min.y)/h,x=v.x-cx;
-   var chest=Math.max(gauss(x-w*.115,0,w*.052),gauss(x+w*.115,0,w*.052))*gauss(y,.705,.034);
-   var groin=gauss(x,0,w*.075)*gauss(y,.405,.050);
-   var factor=1-chest*.16-groin*.28;v.z=cz+(v.z-cz)*factor;
- }}
+ function flattenPatch(list,px,py,rx,ry){
+   var sum=0,count=0,i,v,dx,dy,d;
+   for(i=0;i<list.length;i++){v=list[i];if(v.z<=cz)continue;dx=(v.x-px)/rx;dy=(v.y-py)/ry;d=Math.sqrt(dx*dx+dy*dy);if(d>=1.02&&d<=1.65){sum+=v.z;count++}}
+   if(!count)return;var target=sum/count;
+   for(i=0;i<list.length;i++){v=list[i];if(v.z<=cz)continue;dx=(v.x-px)/rx;dy=(v.y-py)/ry;d=Math.sqrt(dx*dx+dy*dy);if(d<1){var t=Math.pow(1-d,1.35);v.z=v.z*(1-t)+target*t}}
+ }
+ function soften(list){
+   flattenPatch(list,cx-w*.115,b.min.y+h*.705,w*.070,h*.048);
+   flattenPatch(list,cx+w*.115,b.min.y+h*.705,w*.070,h*.048);
+   flattenPatch(list,cx,b.min.y+h*.405,w*.105,h*.070);
+ }
  soften(geometry.vertices);for(var m=0;m<geometry.morphTargets.length;m++)soften(geometry.morphTargets[m].vertices);
  geometry.computeBoundingBox();geometry.computeVertexNormals();
 }
