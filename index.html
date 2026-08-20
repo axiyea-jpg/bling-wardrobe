@@ -205,6 +205,9 @@ choiceEditor=function(title,key,options,defaults){
  manager.ondragstart=e=>{const row=e.target.closest('.manage-tag');if(row){dragFrom=+row.dataset.tagIndex;row.classList.add('dragging');if(e.dataTransfer)e.dataTransfer.effectAllowed='move'}};
  manager.ondragover=e=>{e.preventDefault();const row=e.target.closest('.manage-tag');if(row&&dragFrom!=null){const to=+row.dataset.tagIndex;if(to!==dragFrom){const moved=vals.splice(dragFrom,1)[0];vals.splice(to,0,moved);dragFrom=to;syncOrder();draw()}}};
  manager.ondrop=e=>{e.preventDefault();dragFrom=null;draw()};manager.ondragend=()=>{dragFrom=null;draw()};
+ manager.onpointerdown=e=>{const h=e.target.closest('[data-drag-handle]'),row=e.target.closest('.manage-tag');if(h&&row){e.preventDefault();dragFrom=+row.dataset.tagIndex;manager.setPointerCapture?.(e.pointerId);row.classList.add('dragging')}};
+ manager.onpointermove=e=>{if(dragFrom==null)return;const row=document.elementFromPoint(e.clientX,e.clientY)?.closest('.manage-tag');if(row){e.preventDefault();const to=+row.dataset.tagIndex;if(to!==dragFrom){const moved=vals.splice(dragFrom,1)[0];vals.splice(to,0,moved);dragFrom=to;syncOrder();draw()}}};
+ manager.onpointerup=manager.onpointercancel=e=>{if(dragFrom!=null){manager.releasePointerCapture?.(e.pointerId);dragFrom=null;draw()}};
  manager.addEventListener('touchstart',e=>{const h=e.target.closest('[data-drag-handle]'),row=e.target.closest('.manage-tag');if(h&&row){dragFrom=+row.dataset.tagIndex;row.classList.add('dragging')}},{passive:true});
  manager.addEventListener('touchmove',e=>{if(dragFrom==null)return;const t=e.touches[0],row=document.elementFromPoint(t.clientX,t.clientY)?.closest('.manage-tag');if(row){e.preventDefault();const to=+row.dataset.tagIndex;if(to!==dragFrom){const moved=vals.splice(dragFrom,1)[0];vals.splice(to,0,moved);dragFrom=to;syncOrder();draw()}}},{passive:false});
  manager.addEventListener('touchend',()=>{dragFrom=null;draw()});
