@@ -759,7 +759,7 @@ var root=new THREE.Object3D(),mesh=null,material=null,angle=0,targetY=2850,dista
 scene.add(root);
 var names=["Height","Neck Height","Neck","Shoulders","Shoulder Angle","Breast","Bust Girth","Arm Length","Upper Arm Girth","Wrist","Stomach Form","Waist","Hip Girth","Hip Height","Thigh Girth","Calf Girth","lower Leg"];
 var mid=[155,7,31,14,1,85,66,23,27,14,1,75,100,82,58,36,45], low=[110,5,27,12,0,70,56,16,22,9,0,65,86,72,49,26,39], high=[210,9,35,16,2,100,76,27,32,18,2,85,114,92,66,44,53];
-var current={height:162,weight:52,shoulder:38,bust:84,waist:66,hip:92},smoothWeightIndex=-1;
+var current={height:162,weight:52,shoulder:38,bust:84,waist:66,hip:92},smoothWeightIndex=-1,morphDirection=[];
 function clamp(v,a,b){return Math.max(a,Math.min(b,v))}
 function map(v,a,b,c,d){return c+(clamp(v,a,b)-a)*(d-c)/(b-a)}
 function softenPrivateAreas(geometry){
@@ -797,32 +797,45 @@ function fitWholeBody(geometry){
  var halfFov=camera.fov*Math.PI/360,fitH=(h/2)/Math.tan(halfFov),fitW=(w/2)/(Math.tan(halfFov)*camera.aspect);
  minDistance=Math.max(fitH,fitW)*1.10;maxDistance=minDistance*1.42;distance=minDistance*1.08;
 }
+function calibrateMorphDirections(geometry){
+ geometry.computeBoundingBox();var b=geometry.boundingBox,h=b.max.y-b.min.y,base=geometry.vertices;
+ var bands={12:[.43,.59],14:[.25,.48],15:[.09,.30],16:[.035,.22]};
+ function averageRadius(list,band){var sum=0,count=0;for(var j=0;j<list.length;j++){var v=list[j],ny=(v.y-b.min.y)/h;if(ny>=band[0]&&ny<=band[1]){sum+=Math.sqrt(v.x*v.x+v.z*v.z*.45);count++}}return count?sum/count:0}
+ for(var key in bands){var i=+key,target=geometry.morphTargets[i]&&geometry.morphTargets[i].vertices;if(!target){morphDirection[i]=1;continue}morphDirection[i]=averageRadius(target,bands[key])>=averageRadius(base,bands[key])?1:-1}
+}
 function apply(){
  if(!mesh||!mesh.morphTargetInfluences)return;
- var values=mid.slice(),w=clamp(+current.weight||52,35,140),height=clamp(+current.height||162,110,210);
- var hm=height/100,bmi=w/(hm*hm),bodyT=clamp((bmi-16)/(35-16),0,1);
- function bodyValue(i){return low[i]+bodyT*(high[i]-low[i])}
+ var values=mid.slice(),w=clamp(+current.weight||52,38,110),height=clamp(+current.height||162,145,190);
+ var hm=height/100,bmi=w/(hm*hm),mass=clamp((bmi-20)/15,-.32,1);
+ function weightedValue(i){return mass>=0?mid[i]+mass*(high[i]-mid[i]):mid[i]+(-mass)*(low[i]-mid[i])}
  values[0]=height;
- values[1]=map(height,110,210,low[1],high[1]);
- values[2]=bodyValue(2);
+ values[1]=map(height,145,190,6.1,8.2);
+ values[2]=weightedValue(2);
  values[3]=map(current.shoulder||38,30,50,low[3],high[3]);
  values[5]=map(current.bust||84,70,125,low[5],high[5]);
  values[6]=map(current.bust||84,70,125,low[6],high[6]);
- values[7]=map(height,110,210,low[7],high[7]);
- values[8]=bodyValue(8);
- values[9]=bodyValue(9);
- values[10]=bodyValue(10);
- values[11]=clamp(+current.waist||75,low[11],high[11]);
- values[12]=clamp(+current.hip||100,low[12],high[12]);
- values[13]=map(height,110,210,low[13],high[13]);
- values[14]=mid[14];
- values[15]=mid[15];
- values[16]=mid[16];
- for(var i=0;i<names.length;i++)mesh.morphTargetInfluences[i]=clamp((values[i]-mid[i])/(high[i]-low[i]),-.45,.55);
- if(smoothWeightIndex>=0)mesh.morphTargetInfluences[smoothWeightIndex]=clamp((w-52)/58,-.28,1);
+ values[7]=map(height,145,190,low[7],high[7]);
+ values[8]=weightedValue(8);
+ values[9]=weightedValue(9);
+ values[10]=weightedValue(10);
+ values[11]=clamp(+current.waist||66,low[11],high[11]);
+ var requestedHip=clamp(+current.hip||92,75,135),hipValue=map(requestedHip,75,135,low[12],high[12]);
+ values[12]=hipValue;
+ values[13]=map(height,145,190,low[13],high[13]);
+ var hipLink=(hipValue-mid[12])/(high[12]-low[12]);
+ var massUp=Math.max(0,mass),massDown=Math.min(0,mass);
+ values[14]=clamp(mid[14]+hipLink*5.2+massUp*7.0+massDown*3.2,low[14],high[14]);
+ values[15]=clamp(mid[15]+hipLink*1.7+massUp*5.1+massDown*2.0,low[15],high[15]);
+ values[16]=clamp(mid[16]+hipLink*1.4+massUp*4.6+massDown*1.8,low[16],high[16]);
+ for(var i=0;i<names.length;i++){
+   var influence=(values[i]-mid[i])/(high[i]-low[i]);
+   if(i===12||i===14||i===15||i===16)influence*=morphDirection[i]||1;
+   mesh.morphTargetInfluences[i]=clamp(influence,-.28,.72);
+ }
+ if(smoothWeightIndex>=0)mesh.morphTargetInfluences[smoothWeightIndex]=0;
 }
 new THREE.JSONLoader().load('https://raw.githubusercontent.com/OpnTec/bodyapps-viz/master/models/skinned/UCS/female.js',function(geometry){
- geometry.computeBoundingBox();lowerArms(geometry);softenPrivateAreas(geometry);addSmoothWeightMorph(geometry);
+ geometry.computeBoundingBox();lowerArms(geometry);softenPrivateAreas(geometry);calibrateMorphDirections(geometry);
  material=new THREE.MeshPhongMaterial({color:0x7674d2,ambient:0x23213f,specular:0x302f50,shininess:4,morphTargets:true,skinning:false,side:THREE.DoubleSide});
  mesh=new THREE.SkinnedMesh(geometry,material);root.add(mesh);root.scale.set(70,70,70);
  root.position.y=2400-geometry.boundingBox.min.y*70;root.position.z=100;fitWholeBody(geometry);
