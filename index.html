@@ -302,6 +302,18 @@ body>main.stage~main.stage{display:none!important}
 @media(max-width:520px){.measure-field select,#editCat,#editSeason{min-height:35px;padding-top:7px;padding-bottom:7px;font-size:12px}}
 
 
+</style><style id="pants-editor-v4">
+/* Complete item editor grid and compact wardrobe tags. */
+#itemGrid .auto-tags{display:flex;flex-wrap:nowrap;align-items:center;gap:4px;max-width:100%;overflow:hidden;white-space:nowrap}
+#itemGrid .auto-tags em{flex:0 0 auto;max-width:42%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.item-image-field{display:flex;flex-direction:column;justify-content:center}
+.item-image-edit{display:flex;align-items:center;gap:8px;margin-top:5px;min-height:40px}
+.item-image-preview{width:42px;height:42px;flex:0 0 42px;border-radius:10px;background:#fff3ef center/cover no-repeat;border:1px solid #efd9d3}
+.item-image-actions{display:flex;gap:5px;min-width:0;flex-wrap:wrap}.item-image-actions button,.item-image-actions label{display:inline-flex;align-items:center;justify-content:center;min-height:27px;margin:0;padding:5px 8px;border:1px solid #efd3dc;border-radius:9px;background:#fff7f8;color:#a65370;font-size:9px;line-height:1;cursor:pointer;box-sizing:border-box}
+.item-image-actions button:hover,.item-image-actions label:hover{background:#fdebf0;border-color:#e5a8ba}
+@media(max-width:520px){#itemGrid .auto-tags{gap:3px}.item-image-actions{gap:3px}.item-image-actions button,.item-image-actions label{padding:5px 6px;font-size:8.5px}.item-image-preview{width:38px;height:38px;flex-basis:38px}}
+
+
 </style></head><body><main class="stage"><div class="phone">
 
 <div class="screen">
@@ -614,7 +626,7 @@ $('#modalBody').addEventListener('click',async e=>{
  const remove=e.target.closest('[data-remove-draft]');if(remove){importDrafts.splice(+remove.dataset.removeDraft,1);renderImportDrafts();return}
  if(e.target.closest('#confirmBatchImport')){
   if(!importDrafts.length)return toast('还没有可导入的单品');const a=items.length,b=seasons.length,c=itemMeta.length;
-  importDrafts.forEach(d=>{const index=items.length,meta=[d.color||'待确认',d.material||'待确认',d.style||'日常',d.shape||'常规版型'],season=d.season||'四季';items.push([d.name||'未命名单品',d.category||'上衣',d.image?'imported':'p1',d.image||'',d.source||'',meta.slice(),season]);seasons[index]=season;itemMeta[index]=meta});
+  importDrafts.forEach(d=>{const index=items.length,meta=[d.color||'待确认',d.material||'待确认',d.style||'日常',d.shape||'常规版型'],season=d.season||'四季';items.push([d.name||'未命名单品',d.category||'上衣',d.image?'imported':'p1',d.image||'',d.source||'',meta.slice(),season,d.original||d.image||'',d.crop||{zoom:1,offsetX:0,offsetY:0}]);seasons[index]=season;itemMeta[index]=meta});
   try{saveWardrobe()}catch(err){items.splice(a);seasons.splice(b);itemMeta.splice(c);return toast('照片较多，本地空间不足；请减少数量后分批导入')}
   categoryOverviewMode=false;category='全部';activeSeason='';if($('#seasonSelect'))$('#seasonSelect').value='';wardrobePage=1;render();$('#modal').classList.remove('show');toast('已加入衣橱 '+importDrafts.length+' 件 ✦');importDrafts=[];
  }
@@ -754,6 +766,47 @@ async function repairImportedItemMetadata(){
  if(changed){try{localStorage.setItem('bling-item-meta',JSON.stringify(itemMeta));localStorage.setItem('bling-seasons',JSON.stringify(seasons));localStorage.setItem('bling-items',JSON.stringify(items))}catch(e){}render()}
 }
 repairImportedItemMetadata();
+
+
+/* Pants-aware recognition, editable saved images, and three-tag cards. */
+function analyzePantSilhouette(canvas){
+ const sample=document.createElement('canvas');sample.width=96;sample.height=96;const ctx=sample.getContext('2d',{willReadFrequently:true});ctx.drawImage(canvas,0,0,96,96);const data=ctx.getImageData(0,0,96,96).data,w=96,h=96,corners=[];
+ for(const [cx,cy] of [[2,2],[w-3,2],[2,h-3],[w-3,h-3]])for(let yy=-2;yy<=2;yy++)for(let xx=-2;xx<=2;xx++){const p=((cy+yy)*w+cx+xx)*4;corners.push([data[p],data[p+1],data[p+2]])}
+ const bg=[0,1,2].map(k=>corners.reduce((a,p)=>a+p[k],0)/corners.length),mask=new Uint8Array(w*h);let minX=w,maxX=0,minY=h,maxY=0;
+ for(let y=1;y<h-1;y++)for(let x=1;x<w-1;x++){const p=(y*w+x)*4,r=data[p],g=data[p+1],b=data[p+2],dist=Math.hypot(r-bg[0],g-bg[1],b-bg[2]),st=importColorStats(r,g,b);if(data[p+3]<180||st.v<.08||dist<11&&st.s<.075)continue;mask[y*w+x]=1;minX=Math.min(minX,x);maxX=Math.max(maxX,x);minY=Math.min(minY,y);maxY=Math.max(maxY,y)}
+ if(maxY<=minY||maxX<=minX)return {pantsScore:0,pantShape:''};const mid=(minX+maxX)/2;
+ const runsAt=t=>{const y=Math.round(minY+(maxY-minY)*t),runs=[];let start=-1;for(let x=minX;x<=maxX+1;x++){const on=x<=maxX&&mask[y*w+x];if(on&&start<0)start=x;if((!on||x>maxX)&&start>=0){if(x-start>=2)runs.push([start,x-1]);start=-1}}return runs};
+ const mainLegRuns=t=>{const runs=runsAt(t).sort((a,b)=>(b[1]-b[0])-(a[1]-a[0])).slice(0,3).sort((a,b)=>a[0]-b[0]);let pair=null;for(let a=0;a<runs.length;a++)for(let b=a+1;b<runs.length;b++){const left=runs[a],right=runs[b],gap=right[0]-left[1]-1,gapMid=(right[0]+left[1])/2;if(gap>=1&&Math.abs(gapMid-mid)<(maxX-minX)*.18)pair=[left,right]}return pair};
+ const levels=[.50,.58,.66,.74,.82,.90],pairs=levels.map(mainLegRuns),valid=pairs.filter(Boolean),pantsScore=valid.length/levels.length;
+ const widthAt=t=>{const pair=mainLegRuns(t);return pair?(pair[0][1]-pair[0][0]+1)+(pair[1][1]-pair[1][0]+1):0},hipWidth=runsAt(.23).reduce((a,r)=>a+r[1]-r[0]+1,0),knee=(widthAt(.62)+widthAt(.69))/2,hem=(widthAt(.86)+widthAt(.92))/2;
+ let pantShape='直筒裤';if(pantsScore>.4&&knee&&hem){if(hem>knee*1.22)pantShape='微喇裤';else if(hipWidth&&knee>hipWidth*.72&&hem>hipWidth*.68)pantShape='阔腿裤';else if(hem<knee*.78)pantShape='锥形裤';else pantShape='直筒裤'}
+ return {pantsScore,pantShape,hipWidth,kneeWidth:knee,hemWidth:hem};
+}
+const analyzeImportCanvasBeforePants=analyzeImportCanvas;
+analyzeImportCanvas=function(canvas){return Object.assign(analyzeImportCanvasBeforePants(canvas),analyzePantSilhouette(canvas))};
+function importedSourceIsNoise(source){return /小红书|白底|无水印|网页版|商品图|详情图|主图|来自|素材图|抠图|\bimg\b|\bimage\b|\bphoto\b|codex|clipboard|\d+\s*元/i.test(String(source||''))}
+function hasExplicitClothingCategory(source){return /头巾|丝巾|围巾|外套|大衣|风衣|夹克|开衫|西装|羽绒|裤|牛仔|裙|鞋|靴|乐福|凉鞋|包|手袋|配饰|腰带|项链|耳环|帽|hijab|scarf|coat|jacket|cardigan|blazer|pants|jeans|trousers|skirt|dress|shoe|boot|bag/i.test(String(source||''))}
+function pantsMaterial(color,visual,source){
+ if(/牛仔|denim/i.test(source)||/蓝/.test(color))return '牛仔布';if(/黑|深灰/.test(color))return visual?.texture>12?'厚实斜纹棉':'垂感西装混纺';if(/米白|杏|棕|黄色/.test(color))return visual?.texture>11?'棉质斜纹布':'垂感混纺';return visual?.texture>12?'斜纹棉布':'垂感混纺';
+}
+function pantsStyle(shape){return shape==='微喇裤'?'复古修身':shape==='阔腿裤'?'松弛通勤':shape==='锥形裤'?'简约干练':'利落百搭'}
+function generatedPantsName(color,shape,material){const c=String(color||'').replace(/色$/,'');if(material==='牛仔布')return c+shape.replace(/裤$/,'')+'牛仔裤';return c+shape}
+const analyzeImportTextBeforePants=analyzeImportText;
+analyzeImportText=function(source,visual){
+ const meta=analyzeImportTextBeforePants(source,visual),explicit=hasExplicitClothingCategory(source);if(visual?.pantsScore>=.5&&!explicit||/裤|牛仔|pants|jeans|trousers/i.test(source)){meta.category='裤子';meta.shape=visual?.pantShape||(/微喇/.test(source)?'微喇裤':/阔腿/.test(source)?'阔腿裤':/锥形|小脚/.test(source)?'锥形裤':'直筒裤');meta.color=visual?.primary||meta.color.split('·')[0]||'待确认';meta.material=pantsMaterial(meta.color,visual,source);meta.style=pantsStyle(meta.shape);meta.season='四季';meta.name=generatedPantsName(meta.color,meta.shape,meta.material);return meta}
+ meta.color=visual?.primary||String(meta.color||'').split('·')[0]||'待确认';if(importedSourceIsNoise(source)||importedSourceIsNoise(meta.name)){const color=meta.color.replace(/色$/,''),accent=['上衣','外套'].includes(meta.category)&&visual?.accent?visual.accent.replace(/色$/,'')+'拼领':'',cut=/收腰/.test(meta.shape)?'收腰':/直筒/.test(meta.shape)?'直筒':'',noun=({'上衣':accent?'小衫':'上衣','外套':'外套','裙子':'裙装','鞋':'鞋履','包':'包袋','配饰':'配饰','头巾':'头巾'})[meta.category]||'单品';meta.name=color+accent+cut+noun}return meta;
+};
+function savedItemImageEditor(index,source,isReplacement){
+ const x=items[index];loadImportImage(source).then(img=>{const crop=Object.assign({zoom:1,offsetX:0,offsetY:0},isReplacement?{}:(x[8]||{})),layer=document.createElement('div');layer.className='crop-editor-layer';layer.innerHTML='<section class="crop-editor-card"><header><h3>调整衣服图片</h3><button class="crop-close" type="button" aria-label="关闭">×</button></header><div class="crop-stage"><canvas width="512" height="512"></canvas><i class="crop-frame"></i></div><p class="crop-help">拖动调整位置，滑动缩放；也可以返回更换原图。</p><label class="crop-zoom"><span>缩放</span><input type="range" min="1" max="3" step="0.01" value="'+crop.zoom+'"></label><div class="crop-actions"><button class="soft-btn crop-reset" type="button">恢复居中</button><button class="primary crop-save" type="button">应用图片</button></div></section>';$('#modalBody').appendChild(layer);
+  const canvas=layer.querySelector('canvas'),stage=layer.querySelector('.crop-stage'),zoom=layer.querySelector('.crop-zoom input'),draw=()=>drawImportCrop(img,canvas,crop);draw();let dragging=false,lastX=0,lastY=0;zoom.oninput=()=>{crop.zoom=+zoom.value;draw()};stage.onpointerdown=e=>{dragging=true;lastX=e.clientX;lastY=e.clientY;stage.setPointerCapture(e.pointerId)};stage.onpointermove=e=>{if(!dragging)return;const rect=stage.getBoundingClientRect();crop.offsetX+=(e.clientX-lastX)*512/rect.width;crop.offsetY+=(e.clientY-lastY)*512/rect.height;lastX=e.clientX;lastY=e.clientY;draw()};stage.onpointerup=()=>dragging=false;layer.querySelector('.crop-close').onclick=()=>layer.remove();layer.querySelector('.crop-reset').onclick=()=>{crop.zoom=1;crop.offsetX=0;crop.offsetY=0;zoom.value='1';draw()};layer.querySelector('.crop-save').onclick=async()=>{const btn=layer.querySelector('.crop-save');btn.disabled=true;btn.textContent='处理中…';const pic=await cropAndAnalyzeImport(source,crop);x[3]=pic.image;x[7]=source;x[8]={...crop};if(isReplacement){const guess=analyzeImportText(x[0]+' '+x[1],pic.visual);itemMeta[index]=[guess.color,guess.material,guess.style,guess.shape];x[5]=itemMeta[index].slice();seasons[index]=guess.season;x[6]=guess.season}saveWardrobe();layer.remove();editItemInfo(index);render();toast('衣服图片已更新 ✦')};
+ }).catch(()=>toast('这张图片无法读取'));
+}
+editItemInfo=function(i){
+ const x=items[i],m=normalizedItemMeta(itemMeta[i]||x[5]),preview=x[3]?' style="background-image:url(\''+x[3]+'\')"':'';$('#modalBody').innerHTML='<h2>编辑单品信息</h2><div class="measure-grid"><div class="measure-field"><label>名称</label><input id="editName" value="'+importEsc(x[0])+'"></div><div class="measure-field"><label>分类</label><select id="editCat">'+importCategories.map(v=>'<option '+(v===x[1]?'selected':'')+'>'+v+'</option>').join('')+'</select></div><div class="measure-field"><label>季节</label><select id="editSeason">'+importSeasons.map(v=>'<option '+(v===(seasons[i]||x[6]||'四季')?'selected':'')+'>'+v+'</option>').join('')+'</select></div><div class="measure-field"><label>色系</label><input id="editColor" value="'+importEsc(m[0])+'"></div><div class="measure-field"><label>材质</label><input id="editTexture" value="'+importEsc(m[1])+'"></div><div class="measure-field"><label>风格</label><input id="editStyle" value="'+importEsc(m[2])+'"></div><div class="measure-field"><label>版型</label><input id="editShape" value="'+importEsc(m[3])+'"></div><div class="measure-field item-image-field"><label>图片</label><div class="item-image-edit"><i class="item-image-preview"'+preview+'></i><div class="item-image-actions"><button type="button" id="editSavedCrop">调整裁剪</button><label>更换图片<input id="replaceSavedImage" type="file" accept="image/*" hidden></label></div></div></div></div><button class="primary" id="saveItemEditV4">保存修改</button>';$('#modal').classList.add('show');$('#editSavedCrop').onclick=()=>savedItemImageEditor(i,x[7]||x[3],false);$('#replaceSavedImage').onchange=async e=>{const file=e.target.files?.[0];if(file)savedItemImageEditor(i,await readImportFile(file),true)};$('#saveItemEditV4').onclick=()=>{x[0]=$('#editName').value.trim()||x[0];x[1]=$('#editCat').value;seasons[i]=$('#editSeason').value;itemMeta[i]=[$('#editColor').value.trim()||'待确认',$('#editTexture').value.trim()||'待确认',$('#editStyle').value.trim()||'日常',$('#editShape').value.trim()||'常规版型'];x[5]=itemMeta[i].slice();x[6]=seasons[i];saveWardrobe();render();$('#modal').classList.remove('show');toast('单品信息已更新 ✦')};
+};
+const renderBeforeThreeTags=render;
+render=function(){renderBeforeThreeTags();$$('#itemGrid .auto-tags').forEach(box=>[...box.children].slice(3).forEach(tag=>tag.remove()))};
+render();
 
 
 })();
