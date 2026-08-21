@@ -294,6 +294,14 @@ body>main.stage~main.stage{display:none!important}
 @media(max-width:520px){.import-draft{grid-template-columns:72px 1fr;gap:7px;padding:7px}.draft-picture{width:72px;height:72px}.draft-fields{grid-template-columns:repeat(2,minmax(0,1fr))}.draft-fields label:first-child{grid-column:1/-1}.batch-import-list{max-height:58vh}.crop-editor-card{padding:12px}}
 
 
+</style><style id="item-meta-fix-v3">
+/* Harmonized selectors in the item editor. */
+.measure-field select,#editCat,#editSeason{display:block;width:100%;min-height:38px;margin-top:5px;padding:8px 34px 8px 11px;border:1px solid #efd3dc;border-radius:12px;outline:0;appearance:none;-webkit-appearance:none;color:#654c49;background-color:#fff7f8;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='8' viewBox='0 0 14 8'%3E%3Cpath d='M1 1l6 6 6-6' fill='none' stroke='%23ad5c78' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 11px center;background-size:12px 7px;font:600 13px/1.2 inherit;box-sizing:border-box;box-shadow:0 3px 9px rgba(180,93,123,.05)}
+.measure-field select:focus,#editCat:focus,#editSeason:focus{border-color:#d98ba5;box-shadow:0 0 0 3px rgba(217,139,165,.14)}
+.measure-field select option{background:#fff;color:#654c49}
+@media(max-width:520px){.measure-field select,#editCat,#editSeason{min-height:35px;padding-top:7px;padding-bottom:7px;font-size:12px}}
+
+
 </style></head><body><main class="stage"><div class="phone">
 
 <div class="screen">
@@ -368,7 +376,7 @@ const oldAnalyze=$('#analyze').onclick;$('#analyze').onclick=()=>{const v=$('#id
 let wardrobePage=1,wardrobePageSize=8,manageMode=false,selectedItems=new Set();
 const defaultMeta=[['奶油白','垂感','宽松'],['莓粉','针织','短款'],['深蓝','牛仔','直筒'],['燕麦','轻盈','A字'],['杏色','皮质','圆头'],['奶油粉','绗缝','小方'],['雾紫','顺滑','头巾'],['柔和混色','针织','叠搭']];
 let itemMeta;try{itemMeta=JSON.parse(localStorage.getItem('bling-item-meta'))}catch(e){}itemMeta=itemMeta||defaultMeta.map(x=>[...x]);
-const saveWardrobe=()=>{localStorage.setItem('bling-items',JSON.stringify(items));localStorage.setItem('bling-seasons',JSON.stringify(seasons));localStorage.setItem('bling-item-meta',JSON.stringify(itemMeta))};
+const saveWardrobe=()=>{localStorage.setItem('bling-item-meta',JSON.stringify(itemMeta));localStorage.setItem('bling-seasons',JSON.stringify(seasons));localStorage.setItem('bling-items',JSON.stringify(items))};
 try{const saved=JSON.parse(localStorage.getItem('bling-items'));if(Array.isArray(saved)&&saved.length){items.splice(0,items.length,...saved);const ss=JSON.parse(localStorage.getItem('bling-seasons')||'[]');if(ss.length)seasons.splice(0,seasons.length,...ss)}}catch(e){}
 render=function(){const q=$('#search').value.trim();const filtered=items.map((x,i)=>({x,i})).filter(o=>(category==='全部'||o.x[1]===category)&&o.x[0].includes(q)&&(seasons[o.i]||'春夏秋冬').includes(activeSeason));const total=filtered.length,size=wardrobePageSize==='all'?Math.max(total,1):+wardrobePageSize,pages=Math.max(1,Math.ceil(total/size));wardrobePage=Math.min(wardrobePage,pages);const shown=filtered.slice((wardrobePage-1)*size,wardrobePage*size);$('#count').textContent=total+' 件';$('#itemGrid').innerHTML=shown.map(o=>{const x=o.x,m=itemMeta[o.i]||['自动识别','待补充','日常'];return `<article class="item ${selectedItems.has(o.i)?'selected':''}">${manageMode?`<button class="item-check" data-select-item="${o.i}">${selectedItems.has(o.i)?'✓':''}</button>`:''}<button class="item-main" data-${manageMode?'select-item':'item'}="${o.i}"><div class="itempic ${x[2]}"></div><b>${x[0]}</b><div class="auto-tags">${m.map(t=>`<em>${t}</em>`).join('')}</div></button><div class="item-actions"><button data-edit-item="${o.i}">编辑信息</button><button class="danger" data-delete-item="${o.i}">移除</button></div></article>`}).join('')||'<p style="grid-column:1/-1;text-align:center;color:#9c8885;padding:35px 0">这里暂时没有单品</p>';$('#pager').innerHTML=pages<=1?'':`<button data-page="${Math.max(1,wardrobePage-1)}">‹</button>${Array.from({length:pages},(_,i)=>`<button class="${i+1===wardrobePage?'on':''}" data-page="${i+1}">${i+1}</button>`).join('')}<button data-page="${Math.min(pages,wardrobePage+1)}">›</button>`;$('#selectedCount').textContent='已选 '+selectedItems.size+' 件';$('#tray').innerHTML=items.map((x,i)=>`<button data-wear="${i}" aria-label="穿上${x[0]}"><i class="thumb ${x[2]}"></i></button>`).join('')};
 function editItemInfo(i){const x=items[i],m=itemMeta[i]||['','',''];$('#modalBody').innerHTML=`<h2>编辑单品信息</h2><div class="measure-grid"><div class="measure-field"><label>名称</label><input id="editName" value="${x[0]}"></div><div class="measure-field"><label>分类</label><input id="editCat" value="${x[1]}"></div><div class="measure-field"><label>颜色</label><input id="editColor" value="${m[0]}"></div><div class="measure-field"><label>材质</label><input id="editTexture" value="${m[1]}"></div><div class="measure-field"><label>版型</label><input id="editShape" value="${m[2]}"></div><div class="measure-field"><label>季节</label><input id="editSeason" value="${seasons[i]||'春夏秋冬'}"></div></div><button class="primary" id="saveItemEdit">保存修改</button>`;$('#modal').classList.add('show');$('#saveItemEdit').onclick=()=>{x[0]=$('#editName').value.trim()||x[0];x[1]=$('#editCat').value.trim()||x[1];itemMeta[i]=[$('#editColor').value,$('#editTexture').value,$('#editShape').value];seasons[i]=$('#editSeason').value;saveWardrobe();render();$('#modal').classList.remove('show');toast('单品信息已更新 ✦')}}
@@ -606,7 +614,7 @@ $('#modalBody').addEventListener('click',async e=>{
  const remove=e.target.closest('[data-remove-draft]');if(remove){importDrafts.splice(+remove.dataset.removeDraft,1);renderImportDrafts();return}
  if(e.target.closest('#confirmBatchImport')){
   if(!importDrafts.length)return toast('还没有可导入的单品');const a=items.length,b=seasons.length,c=itemMeta.length;
-  importDrafts.forEach(d=>{items.push([d.name||'未命名单品',d.category||'上衣',d.image?'imported':'p1',d.image||'',d.source||'']);seasons.push(d.season||'四季');itemMeta.push([d.color||'待确认',d.material||'待确认',d.style||'日常',d.shape||'常规版型'])});
+  importDrafts.forEach(d=>{const index=items.length,meta=[d.color||'待确认',d.material||'待确认',d.style||'日常',d.shape||'常规版型'],season=d.season||'四季';items.push([d.name||'未命名单品',d.category||'上衣',d.image?'imported':'p1',d.image||'',d.source||'',meta.slice(),season]);seasons[index]=season;itemMeta[index]=meta});
   try{saveWardrobe()}catch(err){items.splice(a);seasons.splice(b);itemMeta.splice(c);return toast('照片较多，本地空间不足；请减少数量后分批导入')}
   categoryOverviewMode=false;category='全部';activeSeason='';if($('#seasonSelect'))$('#seasonSelect').value='';wardrobePage=1;render();$('#modal').classList.remove('show');toast('已加入衣橱 '+importDrafts.length+' 件 ✦');importDrafts=[];
  }
@@ -618,7 +626,7 @@ render=function(){
  $$('#tray [data-wear]').forEach(btn=>{const x=items[+btn.dataset.wear],pic=btn.querySelector('.thumb');if(x&&x[3]&&pic)pic.style.backgroundImage='url("'+x[3]+'")'});
 };
 editItemInfo=function(i){
- const x=items[i],m=itemMeta[i]||['','','',''];$('#modalBody').innerHTML='<h2>编辑单品信息</h2><div class="measure-grid"><div class="measure-field"><label>名称</label><input id="editName" value="'+importEsc(x[0])+'"></div><div class="measure-field"><label>分类</label><select id="editCat">'+importCategories.map(v=>'<option '+(v===x[1]?'selected':'')+'>'+v+'</option>').join('')+'</select></div><div class="measure-field"><label>季节</label><select id="editSeason">'+importSeasons.map(v=>'<option '+(v===(seasons[i]||'四季')?'selected':'')+'>'+v+'</option>').join('')+'</select></div><div class="measure-field"><label>色系</label><input id="editColor" value="'+importEsc(m[0])+'"></div><div class="measure-field"><label>材质</label><input id="editTexture" value="'+importEsc(m[1])+'"></div><div class="measure-field"><label>风格</label><input id="editStyle" value="'+importEsc(m[2])+'"></div><div class="measure-field"><label>版型</label><input id="editShape" value="'+importEsc(m[3]||'常规版型')+'"></div></div><button class="primary" id="saveItemEditV2">保存修改</button>';$('#modal').classList.add('show');$('#saveItemEditV2').onclick=()=>{x[0]=$('#editName').value.trim()||x[0];x[1]=$('#editCat').value;seasons[i]=$('#editSeason').value;itemMeta[i]=[$('#editColor').value.trim()||'待确认',$('#editTexture').value.trim()||'待确认',$('#editStyle').value.trim()||'日常',$('#editShape').value.trim()||'常规版型'];saveWardrobe();render();$('#modal').classList.remove('show');toast('单品信息已更新 ✦')};
+ const x=items[i],m=itemMeta[i]||['','','',''];$('#modalBody').innerHTML='<h2>编辑单品信息</h2><div class="measure-grid"><div class="measure-field"><label>名称</label><input id="editName" value="'+importEsc(x[0])+'"></div><div class="measure-field"><label>分类</label><select id="editCat">'+importCategories.map(v=>'<option '+(v===x[1]?'selected':'')+'>'+v+'</option>').join('')+'</select></div><div class="measure-field"><label>季节</label><select id="editSeason">'+importSeasons.map(v=>'<option '+(v===(seasons[i]||'四季')?'selected':'')+'>'+v+'</option>').join('')+'</select></div><div class="measure-field"><label>色系</label><input id="editColor" value="'+importEsc(m[0])+'"></div><div class="measure-field"><label>材质</label><input id="editTexture" value="'+importEsc(m[1])+'"></div><div class="measure-field"><label>风格</label><input id="editStyle" value="'+importEsc(m[2])+'"></div><div class="measure-field"><label>版型</label><input id="editShape" value="'+importEsc(m[3]||'常规版型')+'"></div></div><button class="primary" id="saveItemEditV2">保存修改</button>';$('#modal').classList.add('show');$('#saveItemEditV2').onclick=()=>{x[0]=$('#editName').value.trim()||x[0];x[1]=$('#editCat').value;seasons[i]=$('#editSeason').value;itemMeta[i]=[$('#editColor').value.trim()||'待确认',$('#editTexture').value.trim()||'待确认',$('#editStyle').value.trim()||'日常',$('#editShape').value.trim()||'常规版型'];x[5]=itemMeta[i].slice();x[6]=seasons[i];saveWardrobe();render();$('#modal').classList.remove('show');toast('单品信息已更新 ✦')};
 };
 openItem=function(i){
  const x=items[i],m=itemMeta[i]||['自动识别','待补充','日常','常规版型'],imageStyle=x[3]?' style="background-image:url(\''+x[3]+'\')"':'';$('#subTitle').textContent=x[0];$('#subContent').innerHTML='<div class="detail-hero '+x[2]+'"'+imageStyle+'></div><div class="detail-info"><h2>'+importEsc(x[0])+'</h2><div class="auto-tags">'+m.map(t=>'<em>'+importEsc(t)+'</em>').join('')+'<em>'+importEsc(seasons[i]||'四季')+'</em></div><p>这些信息由布灵在录入时自动识别，你可以随时编辑。</p>'+(x[4]?'<span class="detail-source" title="'+importEsc(x[4])+'">来源：'+importEsc(x[4])+'</span>':'')+'</div><div class="options"><button data-wear="'+i+'"><b>加入当前穿搭</b><small>在试衣间查看效果</small></button><button data-edit-item="'+i+'"><b>编辑名称与标签</b><small>修改品类、季节、色系、材质、风格与版型</small></button><button class="danger" data-delete-item="'+i+'"><b>从衣橱移除</b><small>删除这件单品</small></button></div>';$('#overlay').classList.add('show');
@@ -725,6 +733,27 @@ async function openImportCropEditor(index){
 }
 $('#modalBody').addEventListener('click',e=>{const b=e.target.closest('[data-crop-draft]');if(b){e.preventDefault();openImportCropEditor(+b.dataset.cropDraft)}},true);
 $('#modalBody').addEventListener('change',async e=>{if(e.target.id!=='supplementLinkImages')return;e.stopImmediatePropagation();const files=[...e.target.files].filter(f=>f.type.startsWith('image/')),missing=importDrafts.map((d,i)=>d.image?null:i).filter(i=>i!=null);for(let n=0;n<files.length&&n<missing.length;n++){showImportProgress('正在补充并分析商品照片',n+1,files.length);try{const src=await readImportFile(files[n]),crop={zoom:1,offsetX:0,offsetY:0},pic=await cropAndAnalyzeImport(src,crop),i=missing[n],meta=analyzeImportText(files[n].name,pic.visual);importDrafts[i]={...importDrafts[i],...meta,image:pic.image,original:src,crop,visual:pic.visual,needImage:false}}catch(x){}}renderImportDrafts();toast('商品照片已补充 ✦')},true);
+
+
+/* Keep wardrobe images, seasons and generated metadata aligned. */
+function normalizedItemMeta(meta){
+ const m=Array.isArray(meta)?meta.slice(0,4):[];return [m[0]||'待确认',m[1]||'待确认',m[2]||'日常',m[3]||'常规版型'];
+}
+async function repairImportedItemMetadata(){
+ let changed=false;
+ for(let i=0;i<items.length;i++){
+  const x=items[i];let meta=Array.isArray(itemMeta[i])&&itemMeta[i].some(v=>String(v||'').trim())?normalizedItemMeta(itemMeta[i]):null;
+  if(!meta&&Array.isArray(x[5])&&x[5].some(v=>String(v||'').trim()))meta=normalizedItemMeta(x[5]);
+  if(!meta&&x[2]==='imported'&&x[3]){try{const pic=await cropAndAnalyzeImport(x[3],{zoom:1,offsetX:0,offsetY:0}),guess=analyzeImportText((x[0]||'')+' '+(x[1]||''),pic.visual);meta=[guess.color,guess.material,guess.style,guess.shape]}catch(e){}}
+  if(!meta){const defaults=defaultMeta[i%defaultMeta.length]||['待确认','待确认','日常'];meta=normalizedItemMeta(defaults)}
+  if(JSON.stringify(itemMeta[i])!==JSON.stringify(meta)){itemMeta[i]=meta;changed=true}
+  if(JSON.stringify(x[5])!==JSON.stringify(meta)){x[5]=meta.slice();changed=true}
+  const season=seasons[i]||x[6]||'四季';if(seasons[i]!==season){seasons[i]=season;changed=true}if(x[6]!==season){x[6]=season;changed=true}
+ }
+ if(itemMeta.length>items.length){itemMeta.length=items.length;changed=true}if(seasons.length>items.length){seasons.length=items.length;changed=true}
+ if(changed){try{localStorage.setItem('bling-item-meta',JSON.stringify(itemMeta));localStorage.setItem('bling-seasons',JSON.stringify(seasons));localStorage.setItem('bling-items',JSON.stringify(items))}catch(e){}render()}
+}
+repairImportedItemMetadata();
 
 
 })();
