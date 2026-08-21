@@ -336,6 +336,93 @@ body>main.stage~main.stage{display:none!important}
 
 
 </style>
+<style id="bling-avatar-system-v2">
+/* Coherent photo-avatar and garment fitting pass V2 */
+.bling-avatar{
+  --body-width:1;
+  transform:scaleY(var(--avatar-height));
+  filter:drop-shadow(0 12px 15px rgba(81,58,68,.18));
+}
+.bling-avatar svg{display:none!important}
+.avatar-base-photo{
+  position:absolute;
+  inset:0;
+  z-index:1;
+  width:100%;
+  height:100%;
+  display:block;
+  object-fit:contain;
+  object-position:center bottom;
+  transform-origin:50% 88%;
+  transform:scaleX(var(--body-width));
+  border:0;
+  padding:0;
+  margin:0;
+  user-select:none;
+  pointer-events:none;
+}
+.garment-layer{
+  z-index:4;
+  overflow:visible;
+  filter:drop-shadow(0 3px 4px rgba(62,45,52,.22));
+  transform-origin:50% 15%;
+}
+.garment-layer .garment-source{
+  width:100%;
+  height:100%;
+  margin:0!important;
+  padding:0!important;
+  border:0!important;
+  background-color:transparent!important;
+  background-position:center!important;
+  background-repeat:no-repeat!important;
+  background-size:contain!important;
+  object-fit:contain!important;
+  object-position:center!important;
+  mix-blend-mode:multiply;
+  transform-origin:50% 25%;
+  transition:opacity .18s ease;
+}
+.garment-layer .garment-source[data-garment-ready="processing"]{opacity:.12}
+.garment-layer .garment-source[data-garment-ready="true"]{opacity:.98}
+.garment-layer.top{
+  top:18.2%;width:54%;height:35%;
+  clip-path:polygon(5% 14%,29% 0,71% 0,95% 14%,100% 53%,83% 58%,77% 100%,23% 100%,17% 58%,0 53%);
+}
+.garment-layer.outerwear{
+  top:17%;width:61%;height:46%;z-index:6;
+  clip-path:polygon(6% 11%,27% 0,73% 0,94% 11%,100% 62%,85% 68%,78% 100%,22% 100%,15% 68%,0 62%);
+}
+.garment-layer.bottom{
+  top:45%;width:44%;height:47%;
+  clip-path:polygon(6% 0,94% 0,100% 100%,56% 100%,50% 30%,44% 100%,0 100%);
+}
+.garment-layer.skirt{
+  top:43.5%;width:50%;height:34%;
+  clip-path:polygon(20% 0,80% 0,100% 100%,0 100%);
+}
+.garment-layer.dress{
+  top:18%;width:56%;height:66%;
+  clip-path:polygon(7% 9%,29% 0,71% 0,93% 9%,100% 36%,84% 42%,98% 100%,2% 100%,16% 42%,0 36%);
+}
+.garment-layer.shoes{top:87.5%;width:46%;height:11%;clip-path:ellipse(58% 50% at 50% 50%)}
+.garment-layer.bag{left:auto;right:9%;top:37%;width:28%;height:29%;transform:none;z-index:8}
+.garment-layer.accessory{top:17.5%;width:34%;height:13%;z-index:9}
+.garment-layer.headscarf{top:1%;width:42%;height:26%;z-index:10}
+.garment-layer.top .garment-source{transform:perspective(300px) rotateX(-2deg) scaleX(var(--shoulder-scale)) scaleY(1.03)}
+.garment-layer.outerwear .garment-source{transform:perspective(320px) rotateX(-2deg) scaleX(var(--shoulder-scale))}
+.garment-layer.bottom .garment-source{transform:scaleX(var(--hip-scale))}
+.garment-layer.skirt .garment-source{transform:scaleX(var(--hip-scale))}
+.garment-layer.dress .garment-source{transform:scaleX(var(--hip-scale))}
+.avatar-status{left:auto;right:8px;top:8px;padding:4px 7px;background:rgba(255,250,247,.9)}
+.avatar-outfit-label{bottom:4px;background:rgba(255,250,241,.92)}
+.bling-studio{background:linear-gradient(155deg,#faf6f5 0%,#f7f2f3 55%,#f0e9ef 100%)}
+#home .hero-art>.bling-studio{background:linear-gradient(155deg,#faf6f5,#f4eef2)!important}
+.dressing-studio,.ai-avatar-preview,.mini-studio{background:linear-gradient(155deg,#faf6f5,#f0e9ef)!important}
+@media(max-width:370px){.garment-layer.top{width:55%}.garment-layer.outerwear{width:62%}.garment-layer.dress{width:57%}}
+
+
+</style>
 </head><body><main class="stage"><div class="phone">
 
 <div class="screen">
@@ -869,7 +956,7 @@ render();
  function outfitItems(o){const refs=[o.headscarf,o.outerwear,o.dress,o.top,o.bottom,...(o.accessory||[]),o.bag,o.shoes];return refs.map(resolveSaved).filter(Boolean)}
  function baseAvatarSVG(identity){return '<svg viewBox="0 0 230 365" role="img" aria-label="布灵个性化数字模特"><defs><linearGradient id="skinV1" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#ffe0d1"/><stop offset=".55" stop-color="'+identity.skinTone+'"/><stop offset="1" stop-color="#d99f91"/></linearGradient><linearGradient id="hairV1" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#5a4448"/><stop offset="1" stop-color="'+identity.hairColor+'"/></linearGradient><linearGradient id="baseV1" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#f8e5dc"/><stop offset="1" stop-color="#e7c2c4"/></linearGradient><filter id="softV1"><feGaussianBlur stdDeviation=".35"/></filter></defs><ellipse cx="115" cy="349" rx="52" ry="8" fill="#8f6970" opacity=".14" filter="url(#softV1)"/><g class="avatar-breath"><path d="M78 83Q68 45 83 24Q100 4 125 14Q158 19 157 58L151 114Q136 127 82 112Z" fill="url(#hairV1)" opacity=".98"/><g class="avatar-legs"><path d="M89 230Q92 218 111 222L113 332Q111 344 90 343L83 337Q92 322 89 230Z" fill="url(#skinV1)"/><path d="M119 222Q138 218 141 230Q138 322 147 337L140 343Q119 344 117 332Z" fill="url(#skinV1)"/><path d="M83 337Q97 341 112 335Q112 350 91 352Q79 352 83 337Z" fill="url(#skinV1)"/><path d="M118 335Q133 341 147 337Q151 352 139 352Q118 350 118 335Z" fill="url(#skinV1)"/></g><g class="avatar-shoulders"><path d="M82 135Q55 145 48 176L37 224Q34 238 46 242Q57 244 61 229L72 188Q78 170 91 164Z" fill="url(#skinV1)"/><path d="M148 135Q175 145 182 176L193 224Q196 238 184 242Q173 244 169 229L158 188Q152 170 139 164Z" fill="url(#skinV1)"/></g><g class="avatar-hips"><path d="M84 211Q75 241 83 267Q98 280 115 271Q132 280 147 267Q155 241 146 211Z" fill="url(#skinV1)"/></g><g class="avatar-torso"><path d="M88 133Q115 122 142 133Q151 168 145 217Q115 233 85 217Q79 168 88 133Z" fill="url(#skinV1)"/></g><g class="avatar-waist"><path d="M86 191Q115 204 144 191L145 223Q115 238 85 223Z" fill="url(#baseV1)"/><path d="M87 129Q115 120 143 129L145 194Q115 205 85 194Z" fill="url(#baseV1)" opacity=".96"/></g><rect x="104" y="105" width="22" height="31" rx="10" fill="url(#skinV1)"/><ellipse cx="115" cy="75" rx="39" ry="47" fill="url(#skinV1)"/><ellipse cx="77" cy="79" rx="5" ry="10" fill="url(#skinV1)"/><ellipse cx="153" cy="79" rx="5" ry="10" fill="url(#skinV1)"/><path d="M78 66Q80 27 115 24Q153 28 153 67Q139 48 130 42Q106 56 78 66Z" fill="url(#hairV1)"/><path d="M79 62Q83 38 102 29Q89 57 88 94Q78 85 79 62Z" fill="url(#hairV1)"/><path d="M151 58Q151 37 134 29Q146 58 142 96Q153 83 151 58Z" fill="url(#hairV1)"/><g class="avatar-eye"><path d="M91 76Q99 71 107 76" fill="none" stroke="#55434a" stroke-width="2" stroke-linecap="round"/><path d="M123 76Q131 71 139 76" fill="none" stroke="#55434a" stroke-width="2" stroke-linecap="round"/><circle cx="100" cy="77" r="2.3" fill="#4d3c43"/><circle cx="130" cy="77" r="2.3" fill="#4d3c43"/></g><path d="M114 78Q110 91 116 91" fill="none" stroke="#c5867e" stroke-width="1.2" stroke-linecap="round"/><path d="M105 99Q115 105 125 99" fill="none" stroke="#b86e78" stroke-width="2" stroke-linecap="round"/><ellipse cx="94" cy="91" rx="9" ry="4" fill="#e89a9d" opacity=".25"/><ellipse cx="136" cy="91" rx="9" ry="4" fill="#e89a9d" opacity=".25"/></g></svg>'}
  function garmentLayers(o){const pairs=[['top',o.top],['outerwear',o.outerwear],['bottom',o.bottom],['dress',o.dress],['shoes',o.shoes],['bag',o.bag],['headscarf',o.headscarf]];const arr=pairs.map(([layer,ref])=>{const it=resolveSaved(ref);if(!it)return'';const cls=layer==='bottom'&&it[1]==='裙子'?'skirt':layer;return '<span class="garment-layer '+cls+'" title="'+it[0]+'">'+itemImageHTML(it)+'</span>'});(o.accessory||[]).forEach(ref=>{const it=resolveSaved(ref);if(it)arr.push('<span class="garment-layer accessory">'+itemImageHTML(it)+'</span>')});return arr.join('')}
- function avatarHTML(outfit,opts){opts=opts||{};const p=BodyProfileStore.get(),m=BodyMorphMapper.map(p),id=AvatarIdentityStore.get(),names=outfitItems(outfit).map(x=>x[0]);return '<div class="bling-avatar" data-avatar-id="'+id.avatarId+'" style="--avatar-height:'+m.height+';--shoulder-scale:'+m.shoulder+';--bust-scale:'+m.bust+';--waist-scale:'+m.waist+';--hip-scale:'+m.hip+';--leg-scale:'+m.leg+'">'+baseAvatarSVG(id)+garmentLayers(outfit)+'<span class="avatar-status"><i></i>我的数字衣模</span>'+(opts.label===false?'':'<span class="avatar-outfit-label">'+(names.slice(0,3).join(' · ')||'点击下方衣橱开始搭配')+'</span>')+'</div>'}
+ function avatarHTML(outfit,opts){opts=opts||{};const p=BodyProfileStore.get(),m=BodyMorphMapper.map(p),id=AvatarIdentityStore.get(),names=outfitItems(outfit).map(x=>x[0]),bodyWidth=clamp((m.shoulder+m.waist+m.hip+m.leg)/4,.92,1.12);return '<div class="bling-avatar" data-avatar-id="'+id.avatarId+'" style="--avatar-height:'+m.height+';--body-width:'+bodyWidth+';--shoulder-scale:'+m.shoulder+';--bust-scale:'+m.bust+';--waist-scale:'+m.waist+';--hip-scale:'+m.hip+';--leg-scale:'+m.leg+'"><img class="avatar-base-photo" src="assets/bling-avatar-base-v3.png" alt="布灵布灵全身试衣模特">'+garmentLayers(outfit)+'<span class="avatar-status"><i></i>我的数字衣模</span>'+(opts.label===false?'':'<span class="avatar-outfit-label">'+(names.slice(0,3).join(' · ')||'点击下方衣橱开始搭配')+'</span>')+'</div>'}
  function bodySyncHTML(){const p=BodyProfileStore.get();return '<aside class="body-sync-card"><b>已同步身体数据</b>'+p.height+'cm · '+p.weight+'kg<br>肩 '+p.shoulder+' · 腰 '+p.waist+' · 臀 '+p.hip+'</aside>'}
  function ensureDefaultOutfit(){let o=OutfitStore.get();if(!outfitItems(o).length)o=OutfitStore.set(initialOutfit(0));return o}
  function renderHomeLook(index){const hero=q('#home .hero-art');if(!hero)return;const looks=OutfitRecommendationEngine.generate('通勤'),look=looks[index%3];hero.innerHTML='<div class="bling-studio">'+avatarHTML(look.outfit,{label:false})+'</div><div class="hero-copy"><small id="lookNo">LOOK 0'+(index+1)+'</small><h3 id="lookTitle">'+look.title+'</h3><p id="lookCopy">'+look.copy.replace('，','<br>')+'</p><div class="look-garments">'+outfitItems(look.outfit).slice(0,3).map(x=>x[0]).join('<br>')+'</div></div>';hero.closest('.hero').onclick=()=>{OutfitStore.set(look.outfit);setStyleMode('manual');renderManual()}}
@@ -887,6 +974,101 @@ render();
  function initAI(){renderAI();const generate=q('#generate');if(generate)generate.onclick=()=>{const scene=q('#ai .chips .on')?.textContent||'通勤';blingToast('布灵正在从你的真实衣橱挑选…');setTimeout(()=>{renderAIResults(scene);blingToast('三套搭配已经穿到你的数字模特上 ✦')},500)}}
  function init(){ensureDefaultOutfit();renderHomeLook(currentHomeLook());renderManual();initAI();const no=q('#lookNo');if(no)new MutationObserver(()=>renderHomeLook(currentHomeLook())).observe(no,{childList:true,characterData:true,subtree:true});qa('[data-look]').forEach((d,i)=>d.addEventListener('click',()=>setTimeout(()=>renderHomeLook(i),0)));document.addEventListener('click',e=>{if(e.target.closest('#saveBody'))setTimeout(()=>BodyProfileStore.changed(),80)},true);document.addEventListener('bling:bodyprofile',()=>{renderHomeLook(currentHomeLook());renderManual();renderAI()});document.addEventListener('bling:outfit',()=>{renderManual();renderAI()});window.BlingAvatar={BodyProfileStore,BodyMorphMapper,AvatarIdentityStore,OutfitStore,OutfitRecommendationEngine,VirtualTryOnProvider,MockVirtualTryOnProvider,render:avatarHTML}}
  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
+})();
+
+
+</script>
+<script id="bling-avatar-garment-v2">
+(function(){
+  'use strict';
+  const cache=new Map();
+  const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+
+  function sourceUrl(el){
+    if(el.tagName==='IMG')return el.currentSrc||el.src||'';
+    const bg=getComputedStyle(el).backgroundImage||'';
+    const m=bg.match(/^url\(["']?(.*?)["']?\)$/);
+    return m?m[1]:'';
+  }
+
+  function loadImage(src){
+    return new Promise((resolve,reject)=>{
+      const img=new Image();
+      img.decoding='async';
+      img.onload=()=>resolve(img);
+      img.onerror=reject;
+      img.src=src;
+    });
+  }
+
+  function colorDistance(a,b){
+    const dr=a[0]-b[0],dg=a[1]-b[1],db=a[2]-b[2];
+    return Math.sqrt(dr*dr+dg*dg+db*db);
+  }
+
+  async function isolateGarment(src){
+    if(cache.has(src))return cache.get(src);
+    const job=(async()=>{
+      const img=await loadImage(src);
+      const max=640,scale=Math.min(1,max/Math.max(img.naturalWidth,img.naturalHeight));
+      const w=Math.max(2,Math.round(img.naturalWidth*scale));
+      const h=Math.max(2,Math.round(img.naturalHeight*scale));
+      const canvas=document.createElement('canvas');canvas.width=w;canvas.height=h;
+      const ctx=canvas.getContext('2d',{willReadFrequently:true});
+      ctx.drawImage(img,0,0,w,h);
+      let data;
+      try{data=ctx.getImageData(0,0,w,h)}catch(e){return src}
+      const p=data.data;
+      const corners=[[1,1],[w-2,1],[1,h-2],[w-2,h-2],[w>>1,1],[w>>1,h-2]];
+      const bg=[0,0,0];
+      corners.forEach(([x,y])=>{const i=(y*w+x)*4;bg[0]+=p[i];bg[1]+=p[i+1];bg[2]+=p[i+2]});
+      bg[0]/=corners.length;bg[1]/=corners.length;bg[2]/=corners.length;
+
+      const visited=new Uint8Array(w*h),queue=new Int32Array(w*h),distMap=new Float32Array(w*h);
+      let head=0,tail=0;
+      function add(x,y){
+        if(x<0||y<0||x>=w||y>=h)return;
+        const k=y*w+x;if(visited[k])return;
+        const i=k*4,c=[p[i],p[i+1],p[i+2]],d=colorDistance(c,bg);
+        const hi=Math.max(c[0],c[1],c[2]),lo=Math.min(c[0],c[1],c[2]);
+        const nearNeutral=hi-lo<24&&hi>205;
+        if(d>54&&!nearNeutral)return;
+        visited[k]=1;distMap[k]=d;queue[tail++]=k;
+      }
+      for(let x=0;x<w;x++){add(x,0);add(x,h-1)}
+      for(let y=1;y<h-1;y++){add(0,y);add(w-1,y)}
+      while(head<tail){const k=queue[head++],x=k%w,y=(k/w)|0;add(x-1,y);add(x+1,y);add(x,y-1);add(x,y+1)}
+      for(let k=0;k<w*h;k++){
+        if(!visited[k])continue;
+        const i=k*4,d=distMap[k];
+        p[i+3]=d<20?0:Math.round(clamp((d-20)/34,0,1)*p[i+3]);
+      }
+      ctx.putImageData(data,0,0);
+      return canvas.toDataURL('image/png');
+    })().catch(()=>src);
+    cache.set(src,job);return job;
+  }
+
+  async function hydrate(el){
+    if(el.dataset.garmentReady)return;
+    const src=sourceUrl(el);if(!src)return;
+    el.dataset.garmentReady='processing';
+    const clean=await isolateGarment(src);
+    if(el.tagName==='IMG')el.src=clean;
+    else el.style.backgroundImage='url("'+clean.replace(/"/g,'%22')+'")';
+    el.dataset.garmentReady='true';
+  }
+
+  function hydrateAll(root){
+    (root||document).querySelectorAll('.garment-source').forEach(hydrate);
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>hydrateAll());else hydrateAll();
+  new MutationObserver(records=>records.forEach(r=>r.addedNodes.forEach(n=>{
+    if(n.nodeType!==1)return;
+    if(n.matches&&n.matches('.garment-source'))hydrate(n);
+    hydrateAll(n);
+  }))).observe(document.documentElement,{childList:true,subtree:true});
+  document.addEventListener('bling:outfit',()=>setTimeout(()=>hydrateAll(),0));
 })();
 
 
