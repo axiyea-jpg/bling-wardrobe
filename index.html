@@ -1046,6 +1046,24 @@ render();
         const i=k*4,d=distMap[k];
         p[i+3]=d<20?0:Math.round(clamp((d-20)/34,0,1)*p[i+3]);
       }
+      /* Remove isolated product-photo borders, watermarks and line fragments. */
+      const labels=new Int32Array(w*h),sizes=[0],work=new Int32Array(w*h);
+      let label=0,biggest=0;
+      for(let seed=0;seed<w*h;seed++){
+        if(labels[seed]||p[seed*4+3]<32)continue;
+        label++;let qh=0,qt=0,size=0;labels[seed]=label;work[qt++]=seed;
+        while(qh<qt){
+          const k=work[qh++],x=k%w,y=(k/w)|0;size++;
+          let n;
+          if(x&&(n=k-1,!labels[n]&&p[n*4+3]>=32)){labels[n]=label;work[qt++]=n}
+          if(x<w-1&&(n=k+1,!labels[n]&&p[n*4+3]>=32)){labels[n]=label;work[qt++]=n}
+          if(y&&(n=k-w,!labels[n]&&p[n*4+3]>=32)){labels[n]=label;work[qt++]=n}
+          if(y<h-1&&(n=k+w,!labels[n]&&p[n*4+3]>=32)){labels[n]=label;work[qt++]=n}
+        }
+        sizes[label]=size;if(size>biggest)biggest=size;
+      }
+      const minKeep=Math.max(18,Math.round(biggest*.018));
+      for(let k=0;k<w*h;k++)if(labels[k]&&sizes[labels[k]]<minKeep)p[k*4+3]=0;
       ctx.putImageData(data,0,0);
       return canvas.toDataURL('image/png');
     })().catch(()=>src);
