@@ -636,6 +636,7 @@ function importColorStats(r,g,b){
 function detailedImportColor(r,g,b){
  const {h,s,v}=importColorStats(r,g,b);
  if(v<.20)return '黑色';
+ if(v>.86&&s<.14)return '米白色';
  if(s<.075){if(v>.94)return '白色';if(v>.79)return '米白色';if(v>.58)return '浅灰色';return '深灰色'}
  if(h<16||h>=346){if(v>.82&&s<.42)return '浅粉色';return v<.5?'酒红色':'红色'}
  if(h<42){if(v>.78&&s<.32)return '杏色';if(v<.52)return '棕色';return '暖橙色'}
@@ -688,17 +689,17 @@ function inferVisualStyle(category,source,visual,shape){
  const fromText=inferImportStyle(source,category);if(fromText!=='日常简约')return fromText;
  if(visual?.accent)return '精致拼色';if(/收腰/.test(shape))return '气质修身';if(/直筒/.test(shape))return '利落简约';if(category==='上衣')return '清新通勤';return fromText;
 }
-function importVisualColor(visual){
- if(!visual)return '待确认';let color=visual.primary||'待确认';if(visual.secondary&&visual.secondary!==visual.accent)color+='·'+visual.secondary;if(visual.accent)color+='·'+visual.accent+'拼领';return color;
+function importVisualColor(visual,category){
+ if(!visual)return '待确认';let color=visual.primary||'待确认';if(visual.secondary&&visual.secondary!==visual.accent)color+='·'+visual.secondary;if(visual.accent)color+='·'+visual.accent+(['上衣','外套'].includes(category)?'拼领':'拼色');return color;
 }
 function importDetailedName(source,category,color,shape,visual){
  let raw=importBaseName(source).replace(/\b(img|image|photo|dsc|pxl|wechat|mmexport|screenshot|codex|clipboard)[ _-]*[a-z0-9-]*\b/ig,'').replace(/^\d{5,}$/,'').replace(/\s+/g,' ').trim();
  if(raw&&raw.length>2&&raw.length<26&&!/^[a-f0-9-]{10,}$/i.test(raw)&&!/^(相册|商品|link)/i.test(raw))return raw;
- const baseColor=(visual?.primary||color||'').replace(/色$/,''),accent=visual?.accent&&importColorFamily(visual.accent)!==importColorFamily(baseColor)?visual.accent.replace(/色$/,'')+'拼领':'',cut=/收腰/.test(shape)?'收腰':/直筒/.test(shape)?'直筒':'';
+ const baseColor=(visual?.primary||color||'').replace(/色$/,''),accent=['上衣','外套'].includes(category)&&visual?.accent&&importColorFamily(visual.accent)!==importColorFamily(baseColor)?visual.accent.replace(/色$/,'')+'拼领':'',cut=/收腰/.test(shape)?'收腰':/直筒/.test(shape)?'直筒':'';
  const noun=({'上衣':accent?'小衫':'上衣','外套':'外套','裤子':'长裤','裙子':'裙装','鞋':'鞋履','包':'包袋','配饰':'配饰','头巾':'头巾'})[category]||'单品';return baseColor+accent+cut+noun;
 }
 analyzeImportText=function(source,visual){
- if(Array.isArray(visual))visual={primary:rgbToImportColor(visual),secondary:'',accent:'',shape:'',texture:0};const category=inferImportCategory(source),color=importVisualColor(visual),material=inferVisualMaterial(source,category,visual),shape=inferVisualShape(category,source,visual),style=inferVisualStyle(category,source,visual,shape),season=inferImportSeason(category,source),name=importDetailedName(source,category,color,shape,visual);return {name,category,season,color,material,style,shape};
+ if(Array.isArray(visual))visual={primary:rgbToImportColor(visual),secondary:'',accent:'',shape:'',texture:0};const category=inferImportCategory(source),color=importVisualColor(visual,category),material=inferVisualMaterial(source,category,visual),shape=inferVisualShape(category,source,visual),style=inferVisualStyle(category,source,visual,shape),season=inferImportSeason(category,source),name=importDetailedName(source,category,color,shape,visual);return {name,category,season,color,material,style,shape};
 };
 renderImportDrafts=function(){
  const host=$('#importWorkspace');if(!host)return;if(!importDrafts.length){host.innerHTML='<p class="import-note">选择照片或添加链接后，可先检查裁剪和标签，再统一加入衣橱。</p>';return}
