@@ -421,9 +421,9 @@ body>main.stage~main.stage{display:none!important}
 .garment-layer.dress .garment-source{transform:scaleX(var(--hip-scale))}
 .avatar-status{left:auto;right:8px;top:8px;padding:4px 7px;background:rgba(255,250,247,.9)}
 .avatar-outfit-label{bottom:4px;background:rgba(255,250,241,.92)}
-.bling-studio{background:linear-gradient(155deg,#faf6f5 0%,#f7f2f3 55%,#f0e9ef 100%)}
-#home .hero-art>.bling-studio{background:linear-gradient(155deg,#faf6f5,#f4eef2)!important}
-.dressing-studio,.ai-avatar-preview,.mini-studio{background:linear-gradient(155deg,#faf6f5,#f0e9ef)!important}
+.bling-studio{background:#faf7f6}
+#home .hero-art>.bling-studio{background:#faf7f6!important}
+.dressing-studio,.ai-avatar-preview,.mini-studio{background:#faf7f6!important}
 @media(max-width:370px){.garment-layer.top{width:55%}.garment-layer.outerwear{width:62%}.garment-layer.dress{width:57%}}
 
 
@@ -1082,18 +1082,8 @@ render();
     el.dataset.garmentReady='true';
   }
 
-  async function hydrateBase(el){
-    if(el.dataset.avatarCutout)return;
-    const src=el.currentSrc||el.src;if(!src)return;
-    el.dataset.avatarCutout='processing';
-    const clean=await isolateGarment(src);
-    el.src=clean;
-    el.dataset.avatarCutout='true';
-  }
-
   function hydrateAll(root){
     (root||document).querySelectorAll('.garment-source').forEach(hydrate);
-    (root||document).querySelectorAll('.avatar-base-photo').forEach(hydrateBase);
   }
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>hydrateAll());else hydrateAll();
   new MutationObserver(records=>records.forEach(r=>r.addedNodes.forEach(n=>{
