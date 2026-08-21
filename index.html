@@ -370,6 +370,8 @@ body>main.stage~main.stage{display:none!important}
 }
 .bling-avatar .garment-layer:not(.bag){left:50%!important;right:auto!important;transform:translateX(-50%)!important}
 .bling-avatar .garment-layer.bag{left:auto!important;right:9%!important;transform:none!important}
+/* A closed coat covers the inner top; hiding that layer prevents double edges. */
+.bling-avatar:has(.garment-layer.outerwear) .garment-layer.top{opacity:0}
 .garment-layer .garment-source{
   width:100%;
   height:100%;
