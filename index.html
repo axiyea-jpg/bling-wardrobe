@@ -1001,11 +1001,11 @@ const didRepairWardrobeThumbnails=repairStoredWardrobeThumbnails();
 const renderBeforeThumbnailRepair=render;
 render=function(){
  renderBeforeThumbnailRepair();
- $('#itemGrid .item-main').forEach(btn=>{
+ document.querySelectorAll('#itemGrid .item-main').forEach(btn=>{
   const raw=btn.dataset.item!=null?btn.dataset.item:btn.dataset.selectItem;
   const item=items[+raw];showSafeWardrobeThumbnail(btn.querySelector('.itempic'),item,item&&item[1]);
  });
- $('#tray [data-wear]').forEach(btn=>showSafeWardrobeThumbnail(btn.querySelector('.thumb'),items[+btn.dataset.wear],'补图'));
+ document.querySelectorAll('#tray [data-wear]').forEach(btn=>showSafeWardrobeThumbnail(btn.querySelector('.thumb'),items[+btn.dataset.wear],'补图'));
 };
 render();
 if(didRepairWardrobeThumbnails)setTimeout(()=>toast('已清除异常缩略图缓存，单品资料已保留'),80);
@@ -1036,11 +1036,11 @@ const didRepairWardrobeThumbnailsV2=repairDuplicatedWardrobePhotos();
 const renderBeforeThumbnailRepairV2=render;
 render=function(){
  renderBeforeThumbnailRepairV2();
- $('#itemGrid .item-main').forEach(btn=>{
+ document.querySelectorAll('#itemGrid .item-main').forEach(btn=>{
   const raw=btn.dataset.item!=null?btn.dataset.item:btn.dataset.selectItem;
   const item=items[+raw];applyVerifiedWardrobePhoto(btn.querySelector('.itempic'),item,item&&item[1]);
  });
- $('#tray [data-wear]').forEach(btn=>applyVerifiedWardrobePhoto(btn.querySelector('.thumb'),items[+btn.dataset.wear],'补图'));
+ document.querySelectorAll('#tray [data-wear]').forEach(btn=>applyVerifiedWardrobePhoto(btn.querySelector('.thumb'),items[+btn.dataset.wear],'补图'));
 };
 render();
 if(didRepairWardrobeThumbnailsV2)setTimeout(()=>toast('已移除重复的错误缩略图，单品资料已保留'),120);
