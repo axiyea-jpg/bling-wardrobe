@@ -428,6 +428,41 @@ body>main.stage~main.stage{display:none!important}
 
 
 </style>
+
+<style id="wardrobe-thumbnail-repair-v1">
+#itemGrid .itempic.thumb-missing,
+#tray .thumb.thumb-missing{
+  background-image:none !important;
+  background-color:#fff7f3 !important;
+  background-size:auto !important;
+  background-position:center !important;
+  display:grid !important;
+  place-items:center !important;
+  box-shadow:inset 0 0 0 1px #f1dcd7 !important;
+  color:#b66b7f;
+}
+#itemGrid .itempic.thumb-missing::after{
+  content:attr(data-fallback);
+  max-width:78%;
+  padding:7px 9px;
+  border-radius:999px;
+  background:#fbe8ed;
+  color:#ae6178;
+  font-size:10px;
+  font-weight:700;
+  line-height:1.2;
+  text-align:center;
+}
+#tray .thumb.thumb-missing::after{
+  content:"补图";
+  padding:4px 6px;
+  border-radius:8px;
+  background:#fbe8ed;
+  color:#ae6178;
+  font-size:9px;
+  font-weight:700;
+}
+</style>
 </head><body><main class="stage"><div class="phone">
 
 <div class="screen">
@@ -912,7 +947,7 @@ analyzeImportText=function(source,visual){
 };
 function savedItemImageEditor(index,source,isReplacement){
  const x=items[index];loadImportImage(source).then(img=>{const crop=Object.assign({zoom:1,offsetX:0,offsetY:0},isReplacement?{}:(x[8]||{})),layer=document.createElement('div');layer.className='crop-editor-layer';layer.innerHTML='<section class="crop-editor-card"><header><h3>调整衣服图片</h3><button class="crop-close" type="button" aria-label="关闭">×</button></header><div class="crop-stage"><canvas width="512" height="512"></canvas><i class="crop-frame"></i></div><p class="crop-help">拖动调整位置，滑动缩放；也可以返回更换原图。</p><label class="crop-zoom"><span>缩放</span><input type="range" min="1" max="3" step="0.01" value="'+crop.zoom+'"></label><div class="crop-actions"><button class="soft-btn crop-reset" type="button">恢复居中</button><button class="primary crop-save" type="button">应用图片</button></div></section>';$('#modalBody').appendChild(layer);
-  const canvas=layer.querySelector('canvas'),stage=layer.querySelector('.crop-stage'),zoom=layer.querySelector('.crop-zoom input'),draw=()=>drawImportCrop(img,canvas,crop);draw();let dragging=false,lastX=0,lastY=0;zoom.oninput=()=>{crop.zoom=+zoom.value;draw()};stage.onpointerdown=e=>{dragging=true;lastX=e.clientX;lastY=e.clientY;stage.setPointerCapture(e.pointerId)};stage.onpointermove=e=>{if(!dragging)return;const rect=stage.getBoundingClientRect();crop.offsetX+=(e.clientX-lastX)*512/rect.width;crop.offsetY+=(e.clientY-lastY)*512/rect.height;lastX=e.clientX;lastY=e.clientY;draw()};stage.onpointerup=()=>dragging=false;layer.querySelector('.crop-close').onclick=()=>layer.remove();layer.querySelector('.crop-reset').onclick=()=>{crop.zoom=1;crop.offsetX=0;crop.offsetY=0;zoom.value='1';draw()};layer.querySelector('.crop-save').onclick=async()=>{const btn=layer.querySelector('.crop-save');btn.disabled=true;btn.textContent='处理中…';const pic=await cropAndAnalyzeImport(source,crop);x[3]=pic.image;x[7]=source;x[8]={...crop};if(isReplacement){const guess=analyzeImportText(x[0]+' '+x[1],pic.visual);itemMeta[index]=[guess.color,guess.material,guess.style,guess.shape];x[5]=itemMeta[index].slice();seasons[index]=guess.season;x[6]=guess.season}saveWardrobe();layer.remove();editItemInfo(index);render();toast('衣服图片已更新 ✦')};
+  const canvas=layer.querySelector('canvas'),stage=layer.querySelector('.crop-stage'),zoom=layer.querySelector('.crop-zoom input'),draw=()=>drawImportCrop(img,canvas,crop);draw();let dragging=false,lastX=0,lastY=0;zoom.oninput=()=>{crop.zoom=+zoom.value;draw()};stage.onpointerdown=e=>{dragging=true;lastX=e.clientX;lastY=e.clientY;stage.setPointerCapture(e.pointerId)};stage.onpointermove=e=>{if(!dragging)return;const rect=stage.getBoundingClientRect();crop.offsetX+=(e.clientX-lastX)*512/rect.width;crop.offsetY+=(e.clientY-lastY)*512/rect.height;lastX=e.clientX;lastY=e.clientY;draw()};stage.onpointerup=()=>dragging=false;layer.querySelector('.crop-close').onclick=()=>layer.remove();layer.querySelector('.crop-reset').onclick=()=>{crop.zoom=1;crop.offsetX=0;crop.offsetY=0;zoom.value='1';draw()};layer.querySelector('.crop-save').onclick=async()=>{const btn=layer.querySelector('.crop-save');btn.disabled=true;btn.textContent='处理中…';const pic=await cropAndAnalyzeImport(source,crop);x[3]=pic.image;x[7]=source;x[8]={...crop};x[9]='';if(isReplacement){const guess=analyzeImportText(x[0]+' '+x[1],pic.visual);itemMeta[index]=[guess.color,guess.material,guess.style,guess.shape];x[5]=itemMeta[index].slice();seasons[index]=guess.season;x[6]=guess.season}saveWardrobe();layer.remove();editItemInfo(index);render();toast('衣服图片已更新 ✦')};
  }).catch(()=>toast('这张图片无法读取'));
 }
 editItemInfo=function(i){
@@ -921,6 +956,59 @@ editItemInfo=function(i){
 const renderBeforeThreeTags=render;
 render=function(){renderBeforeThreeTags();$$('#itemGrid .auto-tags').forEach(box=>[...box.children].slice(3).forEach(tag=>tag.remove()))};
 render();
+
+
+/* Wardrobe thumbnail repair: never reuse a cached sprite as an item photo. */
+const wardrobeThumbRepairKey='bling-wardrobe-thumbnail-repair-v1';
+const isStoredWardrobePhoto=src=>typeof src==='string'&&/^data:image\/(?:png|jpe?g|webp);base64,/i.test(src)&&src.length>512&&!/(?:wardrobe-category-sprite|home-scene-sprite)/i.test(src);
+function repairStoredWardrobeThumbnails(){
+ if(localStorage.getItem(wardrobeThumbRepairKey)==='1')return false;
+ const seen=new Map();
+ items.forEach(x=>{const src=String(x&&x[3]||'');if(src)seen.set(src,(seen.get(src)||0)+1)});
+ let changed=false;
+ items.forEach(x=>{
+  if(!x)return;
+  const src=String(x[3]||'');
+  const isImported=x[2]==='imported'||x[9]==='needs-photo';
+  const repeated=src&&seen.get(src)>1;
+  const invalid=src&&(!isStoredWardrobePhoto(src)||repeated);
+  if(isImported&&invalid){
+   x[3]='';x[7]='';x[8]=null;x[2]='missing-photo';x[9]='needs-photo';changed=true;
+  }
+ });
+ ['bling-thumb-cache','bling-image-cache','bling-item-image-cache','bling-item-thumbnail-cache'].forEach(key=>localStorage.removeItem(key));
+ localStorage.setItem(wardrobeThumbRepairKey,'1');
+ if(changed)saveWardrobe();
+ return changed;
+}
+function showSafeWardrobeThumbnail(pic,item,label){
+ if(!pic||!item)return;
+ const src=isStoredWardrobePhoto(item[3])?item[3]:'';
+ const needsPhoto=item[2]==='missing-photo'||item[9]==='needs-photo'||(item[2]==='imported'&&!src);
+ pic.classList.toggle('thumb-missing',needsPhoto);
+ if(needsPhoto){
+  pic.style.backgroundImage='none';
+  pic.dataset.fallback=(label||item[1]||'单品')+' · 补图';
+ }else if(src){
+  pic.style.backgroundImage='url("'+src.replace(/"/g,'%22')+'")';
+  pic.dataset.fallback='';
+ }else{
+  pic.style.backgroundImage='';
+  pic.dataset.fallback='';
+ }
+}
+const didRepairWardrobeThumbnails=repairStoredWardrobeThumbnails();
+const renderBeforeThumbnailRepair=render;
+render=function(){
+ renderBeforeThumbnailRepair();
+ $('#itemGrid .item-main').forEach(btn=>{
+  const raw=btn.dataset.item!=null?btn.dataset.item:btn.dataset.selectItem;
+  const item=items[+raw];showSafeWardrobeThumbnail(btn.querySelector('.itempic'),item,item&&item[1]);
+ });
+ $('#tray [data-wear]').forEach(btn=>showSafeWardrobeThumbnail(btn.querySelector('.thumb'),items[+btn.dataset.wear],'补图'));
+};
+render();
+if(didRepairWardrobeThumbnails)setTimeout(()=>toast('已清除异常缩略图缓存，单品资料已保留'),80);
 
 
 })();
