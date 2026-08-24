@@ -1011,6 +1011,41 @@ render();
 if(didRepairWardrobeThumbnails)setTimeout(()=>toast('已清除异常缩略图缓存，单品资料已保留'),80);
 
 
+/* Thumbnail repair v2: hide every fallback sprite and clear every duplicated saved photo. */
+const wardrobeThumbRepairKeyV2='bling-wardrobe-thumbnail-repair-v2';
+function repairDuplicatedWardrobePhotos(){
+ if(localStorage.getItem(wardrobeThumbRepairKeyV2)==='1')return false;
+ const seen=new Map();items.forEach(x=>{const src=String(x&&x[3]||'');if(src)seen.set(src,(seen.get(src)||0)+1)});
+ let changed=false;
+ items.forEach(x=>{
+  const src=String(x&&x[3]||'');
+  if(src&&seen.get(src)>1){x[3]='';x[7]='';x[8]=null;x[2]='missing-photo';x[9]='needs-photo';changed=true}
+ });
+ localStorage.setItem(wardrobeThumbRepairKeyV2,'1');
+ if(changed)saveWardrobe();
+ return changed;
+}
+function applyVerifiedWardrobePhoto(pic,item,label){
+ if(!pic)return;
+ const src=item&&item[9]!=='needs-photo'&&isStoredWardrobePhoto(item[3])?item[3]:'';
+ pic.classList.toggle('thumb-missing',!src);
+ if(src){pic.style.backgroundImage='url("'+src.replace(/"/g,'%22')+'")';pic.dataset.fallback=''}
+ else {pic.style.backgroundImage='none';pic.dataset.fallback=(label||item?.[1]||'单品')+' · 补图'}
+}
+const didRepairWardrobeThumbnailsV2=repairDuplicatedWardrobePhotos();
+const renderBeforeThumbnailRepairV2=render;
+render=function(){
+ renderBeforeThumbnailRepairV2();
+ $('#itemGrid .item-main').forEach(btn=>{
+  const raw=btn.dataset.item!=null?btn.dataset.item:btn.dataset.selectItem;
+  const item=items[+raw];applyVerifiedWardrobePhoto(btn.querySelector('.itempic'),item,item&&item[1]);
+ });
+ $('#tray [data-wear]').forEach(btn=>applyVerifiedWardrobePhoto(btn.querySelector('.thumb'),items[+btn.dataset.wear],'补图'));
+};
+render();
+if(didRepairWardrobeThumbnailsV2)setTimeout(()=>toast('已移除重复的错误缩略图，单品资料已保留'),120);
+
+
 })();
 </script><script id="bling-avatar-runtime-v1">
 /* BlingAvatar / Outfit System / Mock VTO V1 */
