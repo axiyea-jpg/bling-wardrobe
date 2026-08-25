@@ -28,7 +28,7 @@ app.add_middleware(
 
 def owner_auth(x_bling_token: Annotated[str | None, Header()] = None) -> None:
     if settings.owner_token and x_bling_token != settings.owner_token:
-        raise HTTPException(401, detail={"code": "unauthorized", "message": "���ɷ�����������Ч��"})
+        raise HTTPException(401, detail={"code": "unauthorized", "message": "生成服务连接码无效。"})
 
 
 @app.get("/api/health")
@@ -59,9 +59,9 @@ async def _make_import_job(job_id: str, uploads: list[UploadFile]) -> None:
             garment_id = uuid.uuid4().hex
             analyzed = analyze_and_cutout(path, digest) if settings.openai_api_key else {}
             row = Garment(
-                id=garment_id, name=Path(upload.filename or f"��Ʒ{position+1}").stem,
-                category="����", season="�ļ�", color="��ʶ��", material="��ʶ��",
-                style="��ʶ��", fit="��ʶ��", tags=["��ȷ��"], original_url=public_url(path),
+                id=garment_id, name=Path(upload.filename or f"单品{position+1}").stem,
+                category="上衣", season="四季", color="待识别", material="待识别",
+                style="待识别", fit="待识别", tags=["待确认"], original_url=public_url(path),
                 source_hash=digest, status="review",
             ).model_dump()
             row["original_path"] = str(path)
@@ -154,4 +154,3 @@ def delete_reference(reference_id: str) -> dict:
         Path(row["path"]).unlink(missing_ok=True)
         references.delete(reference_id)
     return {"deleted": True}
-
