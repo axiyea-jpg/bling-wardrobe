@@ -18,4 +18,3 @@ def test_optional_measurements_are_preserved():
     assert completed["thigh"] == 59
     assert completed["knee"] == 39
 
-
