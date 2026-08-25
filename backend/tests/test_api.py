@@ -22,4 +22,3 @@ def test_missing_body_weights_returns_actionable_503():
     })
     assert response.status_code == 503
     assert response.json()["detail"]["code"] == "body_model_unavailable"
-
