@@ -74,7 +74,7 @@ class AnthropometricBodyService:
                 503,
                 detail={
                     "code": "body_model_unavailable",
-                    "message": "����ع�Ȩ����δ������ֹͣʹ�û�������ķֶμ�ģ�͡�",
+                    "message": "人体回归权重尚未部署；已停止使用会骨肉分离的分段假模型。",
                 },
             )
         completed = self.complete(measurements, self.measurement_mean)
@@ -84,7 +84,7 @@ class AnthropometricBodyService:
         latent = vector @ self.coef.T + self.intercept
         vertices = (latent @ self.components + self.mean).reshape((-1, 3))
         if not np.isfinite(vertices).all() or len(vertices) != len(self.template.vertices):
-            raise HTTPException(422, detail={"code": "invalid_mesh", "message": "���������������Ч����"})
+            raise HTTPException(422, detail={"code": "invalid_mesh", "message": "人体参数生成了无效网格。"})
 
         body_id = uuid.uuid4().hex
         out_dir = settings.data_dir / "body-models" / body_id
@@ -102,9 +102,8 @@ class AnthropometricBodyService:
         }
         (out_dir / "profile.json").write_text(json.dumps(metadata, ensure_ascii=False), "utf-8")
         body_models.put(body_id, metadata)
-        return BodyModelResult(body_model_id=body_id, completed_measurements=completed, glb_url=metadata["glb_url"], front_reference_url="", three_quarter_reference_url="", warnings=["�ο�����Ⱦ�������ڴ���"])
+        return BodyModelResult(body_model_id=body_id, completed_measurements=completed, glb_url=metadata["glb_url"], front_reference_url="", three_quarter_reference_url="", warnings=["参考照渲染任务尚在处理"])
 
 
 body_service = AnthropometricBodyService(settings.model_dir)
-
 
