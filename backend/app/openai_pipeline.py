@@ -18,7 +18,7 @@ from .store import body_models, garments, references
 
 def client() -> OpenAI:
     if not settings.openai_api_key:
-        raise HTTPException(503, detail={"code": "generation_not_configured", "message": "���ɷ�����δ���� OpenAI API ��Կ��"})
+        raise HTTPException(503, detail={"code": "generation_not_configured", "message": "生成服务尚未配置 OpenAI API 密钥。"})
     return OpenAI(api_key=settings.openai_api_key)
 
 
@@ -51,7 +51,7 @@ def analyze_and_cutout(source: Path, digest: str) -> dict:
         input=[{"role": "user", "content": [
             {"type": "input_text", "text": (
                 "Analyze the main garment only. Return one JSON object with keys name, category, season, color, material, "
-                "style, fit, tags. category must be one of ����,����,����,ȹ��,����ȹ,Ь,��,����,ͷ��. "
+                "style, fit, tags. category must be one of 上衣,外套,裤子,裙子,连衣裙,鞋,包,配饰,头巾. "
                 "Use one dominant color, distinguish denim/linen/cotton/knit/leather/chiffon, and distinguish straight, "
                 "wide-leg, flare, fitted, waist-shaped, A-line, ruffled and oversized silhouettes. Use concise Chinese."
             )},
@@ -59,9 +59,9 @@ def analyze_and_cutout(source: Path, digest: str) -> dict:
         ]}],
     )
     meta = _json_from_text(response.output_text)
-    allowed = {"����", "����", "����", "ȹ��", "����ȹ", "Ь", "��", "����", "ͷ��"}
+    allowed = {"上衣", "外套", "裤子", "裙子", "连衣裙", "鞋", "包", "配饰", "头巾"}
     if meta.get("category") not in allowed:
-        meta["category"] = "����"
+        meta["category"] = "上衣"
     meta["tags"] = list(dict.fromkeys(meta.get("tags") or []))[:8]
 
     with source.open("rb") as image:
@@ -94,7 +94,7 @@ def generate_tryon(request: TryOnRequest) -> dict:
     for garment_id in request.garment_ids:
         row = garments.get(garment_id)
         if not row or row.get("status") != "approved" or not row.get("cutout_path"):
-            raise HTTPException(409, detail={"code": "garment_not_ready", "message": "��ѡ������δ��ɿ�ͼȷ�ϡ�", "garment_id": garment_id})
+            raise HTTPException(409, detail={"code": "garment_not_ready", "message": "所选衣物尚未完成抠图确认。", "garment_id": garment_id})
         rows.append(row)
     if request.model_mode == "digital":
         model = body_models.get(request.body_model_id or "")
@@ -103,7 +103,7 @@ def generate_tryon(request: TryOnRequest) -> dict:
         ref = references.get(request.reference_photo_id or "")
         model_path = ref and ref.get("path")
     if not model_path or not Path(model_path).exists():
-        raise HTTPException(409, detail={"code": "model_reference_missing", "message": "��������������ģ�ο�ͼ���ϴ�����ȫ���ա�"})
+        raise HTTPException(409, detail={"code": "model_reference_missing", "message": "请先生成数字衣模参考图或上传真人全身照。"})
 
     key = tryon_cache_key(request, str(model_path), rows)
     output = settings.data_dir / "tryon" / f"{key}.png"
@@ -132,4 +132,3 @@ def generate_tryon(request: TryOnRequest) -> dict:
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_bytes(base64.b64decode(result.data[0].b64_json))
     return {"image_url": public_url(output), "cache_hit": False, "cache_key": key}
-
