@@ -2,7 +2,7 @@ from typing import Literal
 from pydantic import BaseModel, Field, field_validator
 
 
-Category = Literal["����", "����", "����", "ȹ��", "����ȹ", "Ь", "��", "����", "ͷ��"]
+Category = Literal["上衣", "外套", "裤子", "裙子", "连衣裙", "鞋", "包", "配饰", "头巾"]
 JobStatus = Literal["queued", "processing", "review", "ready", "failed"]
 
 
@@ -64,7 +64,7 @@ class TryOnRequest(BaseModel):
     body_model_id: str | None = None
     reference_photo_id: str | None = None
     garment_ids: list[str] = Field(min_length=1, max_length=8)
-    scene: str = "�ճ�ͨ��"
+    scene: str = "日常通勤"
     quality: Literal["draft", "final"] = "draft"
 
     @field_validator("garment_ids")
@@ -82,5 +82,4 @@ class Job(BaseModel):
     progress: int = 0
     result: dict | None = None
     error: dict | None = None
-
 
