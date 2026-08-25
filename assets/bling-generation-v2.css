@@ -1,0 +1,7 @@
+InvalidOperation: 
+Line |
+   2 |  [Console]::OutputEncoding=[Text.Encoding]::UTF8; Get-Content -Literal ��
+     |  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+     | Cannot set property. Property setting is supported only on core types in this language mode.
+.garment-layer{display:none!important}.bling-avatar .avatar-base-photo{object-fit:contain!important;object-position:center!important}.tryon-result-image{display:block;width:100%;height:100%;object-fit:contain;object-position:center;border-radius:inherit;background:#fffaf7}.tryon-service-state{position:absolute;inset:auto 14px 14px;z-index:20;padding:9px 12px;border:1px solid #efd8dc;border-radius:14px;background:#fffaf7ee;color:#8d6670;font-size:12px;text-align:center;box-shadow:0 6px 20px #9b65731c}.tryon-service-state.error{color:#b34f69;background:#fff2f4f2}.tryon-loading{z-index:30}.body-advanced{grid-column:1/-1;border:1px solid #efd8dc;border-radius:18px;background:#fffaf7;padding:0 12px}.body-advanced summary{cursor:pointer;padding:12px 2px;color:#8f6670;font-weight:700}.body-advanced .advanced-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px;padding:0 0 12px}.service-connect-card{margin:12px 0;padding:14px;border:1px solid #efd8dc;border-radius:18px;background:#fffaf7}.service-connect-card input{width:100%;box-sizing:border-box;margin-top:8px;padding:11px;border:1px solid #ead7d1;border-radius:12px;background:white}.garment-missing{display:grid;place-items:center;width:100%;height:100%;color:#b48b94;background:#fff5f4;font-size:11px}
+
