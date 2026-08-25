@@ -1,8 +1,3 @@
-InvalidOperation: 
-Line |
-   2 |  [Console]::OutputEncoding=[Text.Encoding]::UTF8; Get-Content -Literal ��
-     |  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-     | Cannot set property. Property setting is supported only on core types in this language mode.
 # Anthropometric model files
 
 Place the licensed female model files exported from `zengyh1900/3D-Human-Body-Shape`
