@@ -1,0 +1,21 @@
+InvalidOperation: 
+Line |
+   2 |  [Console]::OutputEncoding=[Text.Encoding]::UTF8; Get-Content -Literal ��
+     |  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+     | Cannot set property. Property setting is supported only on core types in this language mode.
+fastapi==0.116.1
+uvicorn[standard]==0.35.0
+python-multipart==0.0.20
+pydantic-settings==2.10.1
+openai==1.99.9
+numpy==2.2.6
+scipy==1.15.3
+scikit-learn==1.7.1
+trimesh==4.7.1
+Pillow==11.3.0
+aiofiles==24.1.0
+httpx==0.28.1
+pytest==8.4.1
+pytest-asyncio==1.1.0
+
+
