@@ -18,4 +18,3 @@ class Settings(BaseSettings):
 settings = Settings()
 settings.data_dir.mkdir(parents=True, exist_ok=True)
 
-
