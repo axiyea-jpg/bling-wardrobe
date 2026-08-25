@@ -1,8 +1,3 @@
-InvalidOperation: 
-Line |
-   2 |  [Console]::OutputEncoding=[Text.Encoding]::UTF8; Get-Content -Literal ��
-     |  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-     | Cannot set property. Property setting is supported only on core types in this language mode.
 (function(){
   'use strict';
   const API_KEY='bling-generation-api-v2',TOKEN_KEY='bling-generation-token-v2',MODE_KEY='bling-model-mode-v2',BODY_KEY='bling-body-model-id-v2',REF_KEY='bling-reference-photo-id-v2';
