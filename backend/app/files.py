@@ -21,4 +21,3 @@ def public_url(path: Path) -> str:
     rel = path.relative_to(settings.data_dir).as_posix()
     return f"{settings.public_base_url.rstrip('/')}/files/{rel}" if settings.public_base_url else f"/files/{rel}"
 
-
