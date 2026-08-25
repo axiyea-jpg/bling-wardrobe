@@ -52,4 +52,3 @@ garments = JsonStore("garments")
 body_models = JsonStore("body_models")
 references = JsonStore("references")
 
-
