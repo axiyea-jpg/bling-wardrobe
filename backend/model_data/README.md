@@ -11,4 +11,3 @@ The service intentionally does not bundle research weights whose data provenance
 not yet been confirmed. It returns `503 body_model_unavailable` instead of silently
 using the old segmented body mock.
 
-
