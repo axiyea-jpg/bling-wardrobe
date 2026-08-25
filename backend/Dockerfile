@@ -10,4 +10,3 @@ RUN mkdir -p /data
 ENV PORT=8080 BLING_DATA_DIR=/data
 CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT}"]
 
-
