@@ -28,4 +28,3 @@ The upstream research weights and training-data provenance must be reviewed sepa
 ## OpenAI image generation
 
 Garment reconstruction and modeled outfit images can be generated through the OpenAI API when the private backend is configured. No API key is shipped to the browser.
-
