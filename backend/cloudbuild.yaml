@@ -16,9 +16,12 @@ steps:
       - --image=${_REGION}-docker.pkg.dev/${PROJECT_ID}/bling/${_IMAGE}:${SHORT_SHA}
       - --region=${_REGION}
       - --platform=managed
-      - --no-allow-unauthenticated
+      # The browser reaches Cloud Run anonymously at the IAM layer; the FastAPI
+      # application still requires and verifies a Firebase ID token per request.
+      - --allow-unauthenticated
       - --set-env-vars=BLING_FIREBASE_PROJECT_ID=${PROJECT_ID},BLING_GCP_PROJECT_ID=${PROJECT_ID},BLING_GCS_BUCKET=${PROJECT_ID}-bling-private,BLING_FRONTEND_ORIGIN=${_FRONTEND_ORIGIN}
       - --set-secrets=OPENAI_API_KEY=bling-openai-key:latest,BLING_CLOUD_TASKS_SECRET=bling-tasks-secret:latest
 
 images:
   - ${_REGION}-docker.pkg.dev/${PROJECT_ID}/bling/${_IMAGE}:${SHORT_SHA}
+
