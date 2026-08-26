@@ -494,7 +494,7 @@ body>main.stage~main.stage{display:none!important}
 <div class="modal" id="modal"><div class="sheet"><button class="close" id="closeModal">×</button><div id="modalBody"></div></div></div><div class="toast" id="toast"></div>
 <script src="assets/three.min.js"></script><script src="assets/GLTFLoader.js"></script><script src="assets/OrbitControls.js"></script>
 <script>
-(()=>{'use strict';document.querySelectorAll('body>main.stage').forEach((m,i)=>{if(i)m.remove()});const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];const items=[];const seasons=[];let activeSeason='春',category='全部';
+(()=>{'use strict';document.querySelectorAll('body>main.stage').forEach((m,i)=>{if(i)m.remove()});const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];const items=[];const seasons=[];let activeSeason='',category='全部';
 const toast=t=>{const e=$('#toast');e.textContent=t;e.classList.add('show');clearTimeout(window._tt);window._tt=setTimeout(()=>e.classList.remove('show'),1900)};
 function go(id){$$('.page').forEach(x=>x.classList.toggle('active',x.id===id));$$('.nav [data-go]').forEach(x=>x.classList.toggle('on',x.dataset.go===id));$('#overlay').classList.remove('show');$('.screen').scrollTop=0}
 function styleMode(mode){$('#manual').hidden=mode!=='manual';$('#ai').hidden=mode!=='ai';$$('[data-stylemode]').forEach(b=>b.classList.toggle('on',b.dataset.stylemode===mode))}
