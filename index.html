@@ -431,6 +431,20 @@ body>main.stage~main.stage{display:none!important}
 </style>
 
 <style id="wardrobe-thumbnail-repair-v1">
+#itemGrid .itempic,
+#tray .thumb{
+  background-image:none !important;
+  background-position:center !important;
+  overflow:hidden;
+}
+#itemGrid .itempic .wardrobe-photo,
+#tray .thumb .wardrobe-photo{
+  display:block;
+  width:100%;
+  height:100%;
+  object-fit:contain;
+  object-position:center;
+}
 #itemGrid .itempic.thumb-missing,
 #tray .thumb.thumb-missing{
   background-image:none !important;
@@ -1036,9 +1050,15 @@ function repairDuplicatedWardrobePhotos(){
 function applyVerifiedWardrobePhoto(pic,item,label){
  if(!pic)return;
  const src=item&&item[9]!=='needs-photo'&&isStoredWardrobePhoto(item[3])?item[3]:'';
+ pic.querySelectorAll('.wardrobe-photo').forEach(node=>node.remove());
+ pic.style.backgroundImage='none';
  pic.classList.toggle('thumb-missing',!src);
- if(src){pic.style.backgroundImage='url("'+src.replace(/"/g,'%22')+'")';pic.dataset.fallback=''}
- else {pic.style.backgroundImage='none';pic.dataset.fallback=(label||item?.[1]||'单品')+' · 补图'}
+ if(src){
+  const image=document.createElement('img');
+  image.className='wardrobe-photo';image.src=src;image.alt=(item?.[0]||label||'衣物')+'图片';
+  image.onerror=()=>{image.remove();pic.classList.add('thumb-missing');pic.dataset.fallback=(label||item?.[1]||'单品')+' · 补图'};
+  pic.appendChild(image);pic.dataset.fallback='';
+ }else pic.dataset.fallback=(label||item?.[1]||'单品')+' · 补图';
 }
 const didRepairWardrobeThumbnailsV2=repairDuplicatedWardrobePhotos();
 const renderBeforeThumbnailRepairV2=render;
@@ -1054,10 +1074,10 @@ render();
 if(didRepairWardrobeThumbnailsV2)setTimeout(()=>toast('已移除重复的错误缩略图，单品资料已保留'),120);
 
 
-/* One-time requested wardrobe reset: remove every existing uploaded garment and image payload. */
-const wardrobeCleanResetKey='bling-wardrobe-clean-reset-v1';
+/* One-time requested wardrobe reset v2: remove every legacy record, outfit reference and cached sprite payload. */
+const wardrobeCleanResetKey='bling-wardrobe-clean-reset-v2';
 if(localStorage.getItem(wardrobeCleanResetKey)!=='1'){
- ['bling-items','bling-seasons','bling-item-meta','bling-thumb-cache','bling-image-cache','bling-item-image-cache','bling-item-thumbnail-cache'].forEach(key=>localStorage.removeItem(key));
+ ['bling-items','bling-seasons','bling-item-meta','bling-thumb-cache','bling-image-cache','bling-item-image-cache','bling-item-thumbnail-cache','bling-current-outfit-v1','bling-current-outfit-v2','bling-current-outfit-v3','bling-tryon-cache-v1','bling-tryon-cache-v2','bling-tryon-cache-v3','bling-outfit-cache','bling-look-cache'].forEach(key=>localStorage.removeItem(key));
  items.splice(0,items.length);
  seasons.splice(0,seasons.length);
  itemMeta.splice(0,itemMeta.length);
