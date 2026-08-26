@@ -55,6 +55,7 @@ class Garment(BaseModel):
     original_url: str
     cutout_url: str | None = None
     thumbnail_url: str | None = None
+    modeled_preview_url: str | None = None
     source_hash: str
     status: Literal["processing", "review", "approved", "rejected"] = "processing"
 
@@ -83,3 +84,14 @@ class Job(BaseModel):
     result: dict | None = None
     error: dict | None = None
 
+
+class UploadManifest(BaseModel):
+    name: str = Field(min_length=1, max_length=255)
+    content_type: str = Field(pattern=r"^image/")
+    size: int = Field(gt=0)
+    sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+
+
+class ImportJobRequest(BaseModel):
+    files: list[UploadManifest] = Field(min_length=1)
+    body_model_id: str | None = None

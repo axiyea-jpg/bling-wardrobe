@@ -10,10 +10,10 @@ from fastapi import HTTPException
 from openai import OpenAI
 from PIL import Image
 
-from .files import public_url
 from .schemas import TryOnRequest
 from .settings import settings
-from .store import body_models, garments, references
+from .store import body_models
+from .cloud_store import garment_store, object_store, reference_store
 
 
 def client() -> OpenAI:
@@ -86,29 +86,51 @@ def analyze_and_cutout(source: Path, digest: str) -> dict:
     # Verify the artifact is a readable RGBA PNG before presenting it for review.
     with Image.open(cutout) as check:
         check.verify()
-    return {**meta, "cutout_path": str(cutout), "cutout_url": public_url(cutout), "thumbnail_url": public_url(cutout)}
+    return {**meta, "cutout_path": str(cutout)}
 
 
-def generate_tryon(request: TryOnRequest) -> dict:
+def generate_modeled_preview(model_path: Path, garment_path: Path, output: Path) -> Path:
+    """Generate the import-time modeled preview used for instant single-item try-on."""
+    output.parent.mkdir(parents=True, exist_ok=True)
+    with model_path.open("rb") as model, garment_path.open("rb") as garment:
+        result = client().images.edit(
+            model=settings.image_model,
+            image=[model, garment],
+            prompt=(
+                "Create a polished full-body studio fashion photograph of the exact person in Image 1 wearing the exact "
+                "garment in Image 2. Preserve identity, body proportions, garment color, material, construction, silhouette "
+                "and details. Use only plain neutral supporting basics. No collage, floating product, duplicate garment, text "
+                "or watermark. Keep the full person centered with hands and feet visible."
+            ),
+            size="1024x1536", quality="medium", output_format="png",
+        )
+    output.write_bytes(base64.b64decode(result.data[0].b64_json))
+    return output
+
+
+def generate_tryon(uid: str, request: TryOnRequest) -> dict:
     rows = []
     for garment_id in request.garment_ids:
-        row = garments.get(garment_id)
-        if not row or row.get("status") != "approved" or not row.get("cutout_path"):
+        row = garment_store.get(uid, garment_id)
+        if not row or row.get("status") != "approved" or not row.get("cutout_object"):
             raise HTTPException(409, detail={"code": "garment_not_ready", "message": "所选衣物尚未完成抠图确认。", "garment_id": garment_id})
         rows.append(row)
     if request.model_mode == "digital":
         model = body_models.get(request.body_model_id or "")
-        model_path = model and model.get("front_reference_path")
+        model_path = Path(model["front_reference_path"]) if model and model.get("front_reference_path") else None
     else:
-        ref = references.get(request.reference_photo_id or "")
-        model_path = ref and ref.get("path")
+        ref = reference_store.get(uid, request.reference_photo_id or "")
+        model_path = ref and object_store.materialize(ref.get("object_name", ""))
+    if not model_path and settings.default_model_reference.exists():
+        model_path = settings.default_model_reference
     if not model_path or not Path(model_path).exists():
         raise HTTPException(409, detail={"code": "model_reference_missing", "message": "请先生成数字衣模参考图或上传真人全身照。"})
 
-    key = tryon_cache_key(request, str(model_path), rows)
+    key = hashlib.sha256((uid + ":" + tryon_cache_key(request, str(model_path), rows)).encode()).hexdigest()
     output = settings.data_dir / "tryon" / f"{key}.png"
     if output.exists():
-        return {"image_url": public_url(output), "cache_hit": True, "cache_key": key}
+        object_name = object_store.upload_generated(uid, "tryon", output, f"{key}.png")
+        return {"image_url": object_store.signed_read_url(object_name), "cache_hit": True, "cache_key": key}
 
     prompt = (
         "Create one polished full-body fashion try-on photograph. Preserve the identity, body proportions, pose and skin tone "
@@ -116,7 +138,8 @@ def generate_tryon(request: TryOnRequest) -> dict:
         "material, neckline, sleeve length, silhouette and details. Do not collage, float, duplicate or paste product images. "
         f"Scene: {request.scene}. Neutral elegant studio lighting, full body centered, hands and feet visible."
     )
-    image_files = [open(model_path, "rb"), *[open(x["cutout_path"], "rb") for x in rows]]
+    cutout_paths = [object_store.materialize(x["cutout_object"]) for x in rows]
+    image_files = [open(model_path, "rb"), *[open(x, "rb") for x in cutout_paths]]
     try:
         result = client().images.edit(
             model=settings.image_model,
@@ -131,4 +154,5 @@ def generate_tryon(request: TryOnRequest) -> dict:
             f.close()
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_bytes(base64.b64decode(result.data[0].b64_json))
-    return {"image_url": public_url(output), "cache_hit": False, "cache_key": key}
+    object_name = object_store.upload_generated(uid, "tryon", output, f"{key}.png")
+    return {"image_url": object_store.signed_read_url(object_name), "cache_hit": False, "cache_key": key}

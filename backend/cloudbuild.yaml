@@ -1,0 +1,24 @@
+substitutions:
+  _REGION: asia-east1
+  _SERVICE: bling-wardrobe-api
+  _IMAGE: bling-wardrobe-api
+  _FRONTEND_ORIGIN: https://axiyea-jpg.github.io
+
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args: ["build", "-t", "${_REGION}-docker.pkg.dev/${PROJECT_ID}/bling/${_IMAGE}:${SHORT_SHA}", "."]
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - ${_SERVICE}
+      - --image=${_REGION}-docker.pkg.dev/${PROJECT_ID}/bling/${_IMAGE}:${SHORT_SHA}
+      - --region=${_REGION}
+      - --platform=managed
+      - --no-allow-unauthenticated
+      - --set-env-vars=BLING_FIREBASE_PROJECT_ID=${PROJECT_ID},BLING_GCP_PROJECT_ID=${PROJECT_ID},BLING_GCS_BUCKET=${PROJECT_ID}-bling-private,BLING_FRONTEND_ORIGIN=${_FRONTEND_ORIGIN}
+      - --set-secrets=OPENAI_API_KEY=bling-openai-key:latest,BLING_CLOUD_TASKS_SECRET=bling-tasks-secret:latest
+
+images:
+  - ${_REGION}-docker.pkg.dev/${PROJECT_ID}/bling/${_IMAGE}:${SHORT_SHA}

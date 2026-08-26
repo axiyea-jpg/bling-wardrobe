@@ -1,0 +1,8 @@
+[
+  {
+    "origin": ["https://axiyea-jpg.github.io"],
+    "method": ["GET", "HEAD", "PUT"],
+    "responseHeader": ["Content-Type", "Content-Length", "x-goog-resumable"],
+    "maxAgeSeconds": 3600
+  }
+]

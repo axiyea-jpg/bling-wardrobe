@@ -463,7 +463,9 @@ body>main.stage~main.stage{display:none!important}
   font-weight:700;
 }
 </style>
+<meta name="bling-api-base" content="">
 <link rel="stylesheet" href="assets/bling-generation-v2.css?v=5">
+<link rel="stylesheet" href="assets/wardrobe-v3.css?v=1">
 </head><body><main class="stage"><div class="phone">
 
 <div class="screen">
@@ -478,7 +480,7 @@ body>main.stage~main.stage{display:none!important}
 <div class="modal" id="modal"><div class="sheet"><button class="close" id="closeModal">×</button><div id="modalBody"></div></div></div><div class="toast" id="toast"></div>
 <script src="assets/three.min.js"></script><script src="assets/GLTFLoader.js"></script><script src="assets/OrbitControls.js"></script>
 <script>
-(()=>{'use strict';document.querySelectorAll('body>main.stage').forEach((m,i)=>{if(i)m.remove()});const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];const items=[['奶油垂感衬衫','上衣','p1'],['莓粉针织开衫','外套','p2'],['深蓝直筒牛仔裤','裤子','p3'],['燕麦格纹半裙','裙子','p4'],['粉色乐福鞋','鞋','p5'],['奶油蝴蝶结包','包','p6'],['雾紫花朵头巾','头巾','p7'],['柔软针织叠搭','上衣','p8']];const seasons=['春秋','秋冬','春秋','春夏','春秋','春夏秋冬','春夏','秋冬'];let activeSeason='春',category='全部';
+(()=>{'use strict';document.querySelectorAll('body>main.stage').forEach((m,i)=>{if(i)m.remove()});const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];const items=[];const seasons=[];let activeSeason='春',category='全部';
 const toast=t=>{const e=$('#toast');e.textContent=t;e.classList.add('show');clearTimeout(window._tt);window._tt=setTimeout(()=>e.classList.remove('show'),1900)};
 function go(id){$$('.page').forEach(x=>x.classList.toggle('active',x.id===id));$$('.nav [data-go]').forEach(x=>x.classList.toggle('on',x.dataset.go===id));$('#overlay').classList.remove('show');$('.screen').scrollTop=0}
 function styleMode(mode){$('#manual').hidden=mode!=='manual';$('#ai').hidden=mode!=='ai';$$('[data-stylemode]').forEach(b=>b.classList.toggle('on',b.dataset.stylemode===mode))}
@@ -776,7 +778,7 @@ $('#modalBody').addEventListener('click',async e=>{
  const remove=e.target.closest('[data-remove-draft]');if(remove){importDrafts.splice(+remove.dataset.removeDraft,1);renderImportDrafts();return}
  if(e.target.closest('#confirmBatchImport')){
   if(!importDrafts.length)return toast('还没有可导入的单品');const a=items.length,b=seasons.length,c=itemMeta.length;
-  importDrafts.forEach(d=>{const index=items.length,meta=[d.color||'待确认',d.material||'待确认',d.style||'日常',d.shape||'常规版型'],season=d.season||'四季';items.push([d.name||'未命名单品',d.category||'上衣',d.image?'imported':'p1',d.image||'',d.source||'',meta.slice(),season,d.original||d.image||'',d.crop||{zoom:1,offsetX:0,offsetY:0}]);seasons[index]=season;itemMeta[index]=meta});
+  importDrafts.forEach(d=>{const index=items.length,meta=[d.color||'待确认',d.material||'待确认',d.style||'日常',d.shape||'常规版型'],season=d.season||'四季';items.push([d.name||'未命名单品',d.category||'上衣','missing-photo','',d.source||'',meta.slice(),season,'',d.crop||{zoom:1,offsetX:0,offsetY:0}]);seasons[index]=season;itemMeta[index]=meta});
   try{saveWardrobe()}catch(err){items.splice(a);seasons.splice(b);itemMeta.splice(c);return toast('照片较多，本地空间不足；请减少数量后分批导入')}
   categoryOverviewMode=false;category='全部';activeSeason='';if($('#seasonSelect'))$('#seasonSelect').value='';wardrobePage=1;render();$('#modal').classList.remove('show');toast('已加入衣橱 '+importDrafts.length+' 件 ✦');importDrafts=[];
  }
@@ -1235,5 +1237,5 @@ if(localStorage.getItem(wardrobeCleanResetKey)!=='1'){
 })();
 
 
-</script>
+</script><script src="assets/bling-config.js?v=1"></script><script src="assets/wardrobe-v3.js?v=1"></script>
 </body></html>
