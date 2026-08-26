@@ -27,3 +27,16 @@ def test_v3_runtime_uses_stable_ids_and_debounced_tryon() -> None:
 def test_v3_runtime_loads_after_legacy_bundle() -> None:
     page = (ROOT / "index.html").read_text(encoding="utf-8")
     assert page.rfind("wardrobe-v3.js") > page.rfind("</script>") - 3000
+
+
+def test_wardrobe_restores_eight_pixel_icon_categories_and_three_import_paths() -> None:
+    runtime = (ROOT / "assets" / "wardrobe-v3.js").read_text(encoding="utf-8")
+    category_line = next(line for line in runtime.splitlines() if "const CATEGORIES" in line)
+    assert category_line.count("'\\u") == 8
+    assert "\\u8fde\\u8863\\u88d9" not in category_line
+    assert "cat-icon-' + CATEGORY_ICONS" not in runtime  # concatenation is intentionally compact below
+    assert "cat-icon-'+CATEGORY_ICONS[category]" in runtime
+    assert "data-v3-file-input" in runtime
+    assert "data-v3-link-panel" in runtime
+    assert "data-v3-camera-input" in runtime
+    assert "capture=\"environment\"" in runtime

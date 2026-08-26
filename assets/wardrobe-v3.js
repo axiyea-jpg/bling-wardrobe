@@ -12,7 +12,11 @@
     'bling-item-thumbnail-cache', 'bling-wardrobe-thumbnail-repair-v1',
     'bling-wardrobe-thumbnail-repair-v2', 'bling-wardrobe-clean-reset-v1'
   ];
-  const CATEGORIES = ['上衣', '外套', '裤子', '裙子', '连衣裙', '鞋', '包', '配饰', '头巾'];
+  const CATEGORIES = ['\u4e0a\u8863', '\u5916\u5957', '\u88e4\u5b50', '\u88d9\u5b50', '\u978b', '\u5305', '\u914d\u9970', '\u5934\u5dfe'];
+  const CATEGORY_ICONS = {
+    '\u4e0a\u8863':'top', '\u5916\u5957':'outer', '\u88e4\u5b50':'pants', '\u88d9\u5b50':'skirt',
+    '\u978b':'shoes', '\u5305':'bag', '\u914d\u9970':'accessory', '\u5934\u5dfe':'scarf'
+  };
   const LAYERS = [
     ['top', '上衣', ['上衣']], ['outerwear', '外套', ['外套']],
     ['bottom', '下装', ['裤子', '裙子']], ['dress', '连衣裙', ['连衣裙']],
@@ -131,8 +135,9 @@
   };
 
   function normalizeGarment(row) {
+    const category = row.category === '\u8fde\u8863\u88d9' ? '\u88d9\u5b50' : (row.category || '\u4e0a\u8863');
     return {
-      id:String(row.id), name:row.name || '未命名单品', category:row.category || '上衣',
+      id:String(row.id), name:row.name || '未命名单品', category,
       season:row.season || '四季', color:row.color || '待识别', material:row.material || '待识别',
       style:row.style || '日常', fit:row.fit || '常规版型', tags:Array.isArray(row.tags) ? row.tags : [],
       status:row.status || 'processing', originalUrl:row.original_url || '', cutoutUrl:row.cutout_url || '',
@@ -179,7 +184,7 @@
   function categoryMarkup() {
     return '<div class="category-overview"><div class="category-head"><div><b>按类别浏览</b><small>选择一类，再查看里面的单品</small></div></div><div class="category-grid">'+CATEGORIES.map(category => {
       const count = state.garments.filter(g => g.category === category).length;
-      return '<button class="category-card" data-v3-category="'+esc(category)+'"><span class="category-glyph">'+esc(category.slice(0,1))+'</span><span><b>'+esc(category)+'</b><small>'+count+' 件单品</small></span><em>›</em></button>';
+      return '<button class="category-card" data-v3-category="'+esc(category)+'"><span class="cat-icon cat-icon-'+CATEGORY_ICONS[category]+'" aria-hidden="true"></span><span><b>'+esc(category)+'</b><small>'+count+' 件单品</small></span><em>›</em></button>';
     }).join('')+'</div></div>';
   }
 
@@ -190,8 +195,44 @@
 
   function openImport() {
     const body = q('#modalBody');
-    body.innerHTML = '<h2>批量导入衣服</h2><p class="import-intro">可一次选择任意数量照片。原图直接上传到私有云端，不占浏览器本地空间。</p><label class="v3-upload-card"><input data-v3-file-input type="file" accept="image/*" multiple hidden><span>▣</span><b>从相册批量选择</b><small>自动识别、抠图并生成单品上身图</small></label><div data-v3-import-progress></div>';
+    body.innerHTML = '<h2>\u6dfb\u52a0\u5230\u8863\u6a71</h2><p class="import-intro">\u9009\u62e9\u4f60\u4e60\u60ef\u7684\u5bfc\u5165\u65b9\u5f0f\uff0c\u5bfc\u5165\u540e\u4ecd\u53ef\u7f16\u8f91\u56fe\u7247\u548c\u6807\u7b7e\u3002</p><div class="v3-import-sources"><label class="v3-import-source"><input data-v3-file-input type="file" accept="image/*" multiple hidden><span class="v3-import-icon">\u25a3</span><b>\u4ece\u76f8\u518c\u4e0a\u4f20</b><small>\u53ef\u4e00\u6b21\u9009\u62e9\u591a\u5f20\u7167\u7247</small></label><button class="v3-import-source" data-v3-link-panel><span class="v3-import-icon">\u2197</span><b>\u590d\u5236\u5546\u54c1\u9875\u94fe\u63a5</b><small>\u652f\u6301\u5546\u54c1\u9875\u6216\u56fe\u7247\u94fe\u63a5</small></button><label class="v3-import-source"><input data-v3-camera-input type="file" accept="image/*" capture="environment" hidden><span class="v3-import-icon">\u25c9</span><b>\u76f4\u63a5\u62cd\u7167</b><small>\u6253\u5f00\u76f8\u673a\u62cd\u6444\u5355\u4ef6\u8863\u7269</small></label></div><div data-v3-import-progress></div>';
     q('#modal').classList.add('show');
+  }
+
+  function openLinkImport() {
+    const body = q('#modalBody');
+    body.innerHTML = '<h2>\u4ece\u5546\u54c1\u9875\u94fe\u63a5\u5bfc\u5165</h2><p class="import-intro">\u6bcf\u884c\u7c98\u8d34\u4e00\u4e2a\u5546\u54c1\u9875\u6216\u56fe\u7247\u94fe\u63a5\u3002</p><textarea class="v3-link-input" data-v3-link-input placeholder="https://..."></textarea><div class="v3-link-actions"><button data-v3-import-menu>\u8fd4\u56de</button><button class="primary" data-v3-link-submit>\u5f00\u59cb\u5bfc\u5165</button></div><div data-v3-import-progress></div>';
+  }
+
+  async function importLinks(value) {
+    const urls = [...new Set(String(value || '').split(/[\n\r,\uff0c]+/).map(x => x.trim()).filter(x => /^https?:\/\//i.test(x)))];
+    const host = q('[data-v3-import-progress]');
+    if (!urls.length) { if (host) host.innerHTML = '<p class="v3-error">\u8bf7\u7c98\u8d34\u6709\u6548\u7684\u5546\u54c1\u9875\u6216\u56fe\u7247\u94fe\u63a5\u3002</p>'; return; }
+    try {
+      const files = [];
+      for (let i = 0; i < urls.length; i++) {
+        if (host) host.innerHTML = '<p class="v3-progress">\u6b63\u5728\u8bfb\u53d6\u94fe\u63a5 '+(i+1)+' / '+urls.length+'</p>';
+        let source = urls[i];
+        let response = await fetch(source, {mode:'cors'});
+        if (!response.ok) throw Error('\u65e0\u6cd5\u8bfb\u53d6\u8be5\u94fe\u63a5');
+        let type = response.headers.get('content-type') || '';
+        if (type.includes('text/html')) {
+          const doc = new DOMParser().parseFromString(await response.text(), 'text/html');
+          const image = doc.querySelector('meta[property="og:image"]')?.content || doc.querySelector('meta[name="twitter:image"]')?.content;
+          if (!image) throw Error('\u8be5\u5546\u54c1\u9875\u672a\u627e\u5230\u53ef\u5bfc\u5165\u7684\u5546\u54c1\u56fe');
+          source = new URL(image, source).href;
+          response = await fetch(source, {mode:'cors'});
+          if (!response.ok) throw Error('\u5546\u54c1\u56fe\u8bfb\u53d6\u5931\u8d25');
+          type = response.headers.get('content-type') || 'image/jpeg';
+        }
+        if (!type.startsWith('image/')) throw Error('\u94fe\u63a5\u4e0d\u662f\u53ef\u7528\u7684\u56fe\u7247');
+        const blob = await response.blob();
+        files.push(new File([blob], 'product-'+(i+1)+'.'+(blob.type.split('/')[1] || 'jpg'), {type:blob.type || 'image/jpeg'}));
+      }
+      await importFiles(files);
+    } catch (error) {
+      if (host) host.innerHTML = '<p class="v3-error">'+esc(error.message)+'<br><small>\u5982\u5546\u5bb6\u7f51\u7ad9\u7981\u6b62\u8bfb\u53d6\uff0c\u53ef\u4fdd\u5b58\u5546\u54c1\u56fe\u540e\u4ece\u76f8\u518c\u4e0a\u4f20\u3002</small></p>';
+    }
   }
 
   async function importFiles(files) {
@@ -345,6 +386,9 @@
       const go = target.closest('[data-go]');
       if (go) { event.preventDefault(); event.stopImmediatePropagation(); navigate(go.dataset.go, go.dataset.mode); return; }
       if (target.closest('[data-modal="add"],[data-modal="import"],[data-v3-import]')) { event.preventDefault(); event.stopImmediatePropagation(); openImport(); return; }
+      if (target.hasAttribute('data-v3-link-panel')) { openLinkImport(); return; }
+      if (target.hasAttribute('data-v3-import-menu')) { openImport(); return; }
+      if (target.hasAttribute('data-v3-link-submit')) { importLinks(q('[data-v3-link-input]')?.value || ''); return; }
       if (target.dataset.v3Category) { state.category=target.dataset.v3Category; renderWardrobe(); return; }
       if (target.hasAttribute('data-v3-back')) { state.category=null; renderWardrobe(); return; }
       if (target.dataset.v3Delete) { event.preventDefault(); if(confirm('确定移除这件衣服吗？')){try{await api.remove(target.dataset.v3Delete);await refreshGarments()}catch(e){toast(e.message)}} return; }
@@ -358,7 +402,7 @@
       if (target.hasAttribute('data-v3-ai-generate')) { generateLooks();return; }
       if (target.dataset.stylemode) { event.preventDefault();event.stopImmediatePropagation();renderDressing(target.dataset.stylemode); }
     }, true);
-    document.addEventListener('change', event => { if (event.target.matches('[data-v3-file-input]')) importFiles(event.target.files); }, true);
+    document.addEventListener('change', event => { if (event.target.matches('[data-v3-file-input],[data-v3-camera-input]')) importFiles(event.target.files); }, true);
     document.addEventListener('input', event => { if(event.target.matches('[data-v3-search]')){state.search=event.target.value;renderWardrobe();q('[data-v3-search]')?.focus()} }, true);
   }
 
