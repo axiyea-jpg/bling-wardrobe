@@ -24,9 +24,27 @@ def test_v3_runtime_uses_stable_ids_and_debounced_tryon() -> None:
     assert "body_model_id" in runtime
 
 
-def test_v3_runtime_loads_after_legacy_bundle() -> None:
+def test_local_wardrobe_is_primary_while_cloud_runtime_is_paused() -> None:
     page = (ROOT / "index.html").read_text(encoding="utf-8")
-    assert page.rfind("wardrobe-v3.js") > page.rfind("</script>") - 3000
+    assert "wardrobe-v3.js" not in page
+    assert "wardrobe-v3.css" not in page
+    assert "localStorage.setItem('bling-items'" in page
+
+
+def test_local_wardrobe_keeps_management_filtering_and_analysis_features() -> None:
+    page = (ROOT / "index.html").read_text(encoding="utf-8")
+    for feature in (
+        'id="manageItems"',
+        'id="seasonSelect"',
+        'id="pageSize"',
+        'id="backCategories"',
+        'id="toTop"',
+        "analyzeImportText",
+        "processAlbumFiles",
+        "data-camera=\"1\"",
+        "quickLinkImport",
+    ):
+        assert feature in page
 
 
 def test_wardrobe_restores_eight_pixel_icon_categories_and_three_import_paths() -> None:
