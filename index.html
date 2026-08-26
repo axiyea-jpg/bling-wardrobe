@@ -752,7 +752,11 @@ async function processAlbumFiles(files,append){
  for(let i=0;i<list.length;i++){showImportProgress('正在裁剪并分析照片',i+1,list.length);try{const src=await readImportFile(list[i]),pic=await cropAndAnalyzeImport(src),meta=analyzeImportText(list[i].name,pic.rgb);importDrafts.push({...meta,image:pic.image,source:'相册：'+list[i].name,needImage:false})}catch(e){const meta=analyzeImportText(list[i].name,null);importDrafts.push({...meta,image:'',source:'相册：'+list[i].name,needImage:true})}}
  renderImportDrafts();toast('已生成 '+list.length+' 件单品草稿 ✦');
 }
-function parseImportLinks(value){return [...new Set(String(value||'').split(/[\n\r,，]+/).map(x=>x.trim()).filter(x=>/^https?:\/\//i.test(x)))]}
+function normalizeImportLink(value){
+ const raw=String(value||'').trim();if(!/^https?:\/\//i.test(raw))return '';
+ try{const u=new URL(raw);if(/(^|\.)taobao\.com$/i.test(u.hostname)||/(^|\.)tmall\.com$/i.test(u.hostname)){const id=u.searchParams.get('id');if(id&&/^\d{8,15}$/.test(id))return 'https://item.taobao.com/item.htm?id='+id}return u.href}catch(e){return ''}
+}
+function parseImportLinks(value){return [...new Set(String(value||'').split(/[\n\r,，]+/).map(normalizeImportLink).filter(Boolean))]}
 async function fetchImportLink(url){
  let source=url,title='';
  try{const u=new URL(url),direct=/\.(png|jpe?g|webp|gif)(\?|$)/i.test(u.pathname);if(direct){const res=await fetch(url,{mode:'cors'});if(!res.ok)throw new Error('图片请求失败');const blob=await res.blob(),src=await readImportFile(new File([blob],'link-image.'+(blob.type.split('/')[1]||'jpg'),{type:blob.type})),pic=await cropAndAnalyzeImport(src),meta=analyzeImportText(url,pic.rgb);return {...meta,image:pic.image,source:url,needImage:false}}
@@ -763,8 +767,8 @@ async function fetchImportLink(url){
 }
 async function processImportLinks(value){
  const links=parseImportLinks(value);if(!links.length)return toast('请每行粘贴一个有效网址');importDrafts=[];
- for(let i=0;i<links.length;i++){showImportProgress('正在分析商品链接',i+1,links.length);importDrafts.push(await fetchImportLink(links[i]))}
- renderImportDrafts();toast('已生成 '+links.length+' 件链接草稿 ✦');
+ const failed=[];for(let i=0;i<links.length;i++){showImportProgress('正在分析商品链接',i+1,links.length);const draft=await fetchImportLink(links[i]);if(draft.needImage)failed.push(links[i]);else importDrafts.push(draft)}
+ renderImportDrafts();if(failed.length){const ids=failed.map(x=>{try{return new URL(x).searchParams.get('id')}catch(e){return ''}}).filter(Boolean);const host=$('#importWorkspace');host.insertAdjacentHTML('afterbegin','<div class="import-note link-import-error"><b>有 '+failed.length+' 个商品页无法读取</b><br>淘宝限制外部网页获取商品资料'+(ids.length?'（商品 ID：'+ids.map(importEsc).join('、')+'）':'')+'。这些链接没有生成空白单品。</div>');toast('淘宝商品页限制外部读取，未生成错误单品')}else toast('已生成 '+links.length+' 件链接草稿 ✦');
 }
 function openImportHub(mode){
  importDrafts=[];$('#modalBody').innerHTML='<h2>批量导入衣服</h2><p class="import-intro">批量选择照片，自动生成可编辑的图片和标签。</p><div class="import-source-grid"><label class="import-source-card"><input id="batchAlbumInput" type="file" accept="image/*" multiple hidden><span class="import-source-icon">▣</span><strong>从相册批量选择</strong><small>支持一次选择多张照片</small></label><button class="import-source-card" id="openLinkBatch"><span class="import-source-icon">↗</span><strong>从网站链接导入</strong><small>一行一个商品或图片链接</small></button></div><p class="import-note">图片仅在当前设备处理，导入前可修改。</p><div id="importWorkspace"></div>';$('#modal').classList.add('show');renderImportDrafts();if(mode==='link')setTimeout(()=>$('#openLinkBatch')?.click(),0);
@@ -775,14 +779,11 @@ openModal=function(type){
  openImportHub();
 };
 function showImportLinkPanel(){
- $('#importWorkspace').innerHTML='<textarea class="batch-link-textarea" id="batchProductLinks" placeholder="每行粘贴一个商品链接或图片链接…"></textarea><div class="import-toolbar"><button class="primary" id="analyzeBatchLinks">分析这些链接</button><label class="soft-btn">补充商品照片<input id="supplementLinkImages" type="file" accept="image/*" multiple hidden></label></div><p class="import-note">部分购物网站会禁止外部网页读取商品图。遇到这种情况，链接文字仍会生成草稿，你可以选择对应照片补齐清晰图片。</p>';
+ $('#importWorkspace').innerHTML='<textarea class="batch-link-textarea" id="batchProductLinks" placeholder="每行粘贴一个商品链接或图片链接…"></textarea><div class="import-toolbar"><button class="primary" id="analyzeBatchLinks">分析这些链接</button></div><p class="import-note">普通商品页会读取标题、主图和标签；淘宝等限制外部读取的网站会明确提示失败，不会生成空白单品。</p>';
 }
 $('#modalBody').addEventListener('change',async e=>{
  if(e.target.id==='quickAlbumInput'){openImportHub();await processAlbumFiles(e.target.files,false)}
  if(e.target.id==='batchAlbumInput')await processAlbumFiles(e.target.files,false);
- if(e.target.id==='supplementLinkImages'){
-  const files=[...e.target.files].filter(f=>f.type.startsWith('image/')),missing=importDrafts.map((d,i)=>d.image?null:i).filter(i=>i!=null);for(let n=0;n<files.length&&n<missing.length;n++){showImportProgress('正在补充商品照片',n+1,files.length);try{const src=await readImportFile(files[n]),pic=await cropAndAnalyzeImport(src),i=missing[n],meta=analyzeImportText(files[n].name,pic.rgb);importDrafts[i]={...importDrafts[i],image:pic.image,color:meta.color,needImage:false}}catch(x){}}renderImportDrafts();toast('商品照片已补充 ✦')
- }
 });
 $('#modalBody').addEventListener('input',e=>{const i=+e.target.dataset.draftIndex,f=e.target.dataset.draftField;if(f&&importDrafts[i])importDrafts[i][f]=e.target.value});
 function confirmLocalImportDrafts(){
@@ -915,9 +916,6 @@ async function openImportCropEditor(index){
  layer.querySelector('.crop-close').onclick=()=>layer.remove();layer.querySelector('.crop-reset').onclick=()=>{crop.zoom=1;crop.offsetX=0;crop.offsetY=0;zoom.value='1';draw()};layer.querySelector('.crop-save').onclick=async()=>{const btn=layer.querySelector('.crop-save');btn.disabled=true;btn.textContent='处理中…';const pic=await cropAndAnalyzeImport(d.original,crop),meta=analyzeImportText(d.source,pic.visual);Object.assign(d,meta,{image:pic.image,crop:{...crop},visual:pic.visual,needImage:false});layer.remove();renderImportDrafts();toast('裁剪和标签已重新分析 ✦')};
 }
 $('#modalBody').addEventListener('click',e=>{const b=e.target.closest('[data-crop-draft]');if(b){e.preventDefault();openImportCropEditor(+b.dataset.cropDraft)}},true);
-$('#modalBody').addEventListener('change',async e=>{if(e.target.id!=='supplementLinkImages')return;e.stopImmediatePropagation();const files=[...e.target.files].filter(f=>f.type.startsWith('image/')),missing=importDrafts.map((d,i)=>d.image?null:i).filter(i=>i!=null);for(let n=0;n<files.length&&n<missing.length;n++){showImportProgress('正在补充并分析商品照片',n+1,files.length);try{const src=await readImportFile(files[n]),crop={zoom:1,offsetX:0,offsetY:0},pic=await cropAndAnalyzeImport(src,crop),i=missing[n],meta=analyzeImportText(files[n].name,pic.visual);importDrafts[i]={...importDrafts[i],...meta,image:pic.image,original:src,crop,visual:pic.visual,needImage:false}}catch(x){}}renderImportDrafts();toast('商品照片已补充 ✦')},true);
-
-
 /* Keep wardrobe images, seasons and generated metadata aligned. */
 function normalizedItemMeta(meta){
  const m=Array.isArray(meta)?meta.slice(0,4):[];return [m[0]||'待确认',m[1]||'待确认',m[2]||'日常',m[3]||'常规版型'];
