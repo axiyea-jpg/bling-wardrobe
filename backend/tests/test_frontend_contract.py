@@ -58,3 +58,11 @@ def test_wardrobe_restores_eight_pixel_icon_categories_and_three_import_paths() 
     assert "data-v3-link-panel" in runtime
     assert "data-v3-camera-input" in runtime
     assert "capture=\"environment\"" in runtime
+
+
+def test_dressing_room_reuses_wardrobe_category_sprite() -> None:
+    page = (ROOT / "index.html").read_text(encoding="utf-8")
+    assert "#style .outfit-slot .cat-icon" in page
+    assert "cat-icon-'+icon" in page
+    for icon in ("top", "outer", "pants", "skirt", "shoes", "bag", "accessory", "scarf"):
+        assert f"#style .cat-icon-{icon}" in page
