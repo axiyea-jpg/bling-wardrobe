@@ -66,3 +66,13 @@ def test_dressing_room_reuses_wardrobe_category_sprite() -> None:
     assert "cat-icon-'+icon" in page
     for icon in ("top", "outer", "pants", "skirt", "shoes", "bag", "accessory", "scarf"):
         assert f"#style .cat-icon-{icon}" in page
+
+
+def test_local_import_confirmation_saves_image_and_uses_capture_listener() -> None:
+    page = (ROOT / "index.html").read_text(encoding="utf-8")
+    assert "function confirmLocalImportDrafts()" in page
+    assert "e.target.closest('#confirmBatchImport')" in page
+    assert "confirmLocalImportDrafts()},true" in page
+    assert "image=d.image||''" in page
+    assert "image?'imported':'missing-photo'" in page
+    assert "categoryOverviewMode=true" in page
