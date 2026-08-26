@@ -1049,7 +1049,7 @@ function repairDuplicatedWardrobePhotos(){
 }
 function applyVerifiedWardrobePhoto(pic,item,label){
  if(!pic)return;
- const src=item&&item[9]!=='needs-photo'&&isStoredWardrobePhoto(item[3])?item[3]:'';
+ const src=item&&isStoredWardrobePhoto(item[3])?item[3]:'';
  pic.querySelectorAll('.wardrobe-photo').forEach(node=>node.remove());
  pic.style.backgroundImage='none';
  pic.classList.toggle('thumb-missing',!src);
