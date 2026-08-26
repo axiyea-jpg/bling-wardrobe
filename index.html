@@ -1071,6 +1071,15 @@ render=function(){
  document.querySelectorAll('#tray [data-wear]').forEach(btn=>applyVerifiedWardrobePhoto(btn.querySelector('.thumb'),items[+btn.dataset.wear],'补图'));
 };
 render();
+const syncWardrobePhotoElements=()=>{
+ document.querySelectorAll('#itemGrid .item-main').forEach(btn=>{
+  const raw=btn.dataset.item!=null?btn.dataset.item:btn.dataset.selectItem;
+  applyVerifiedWardrobePhoto(btn.querySelector('.itempic'),items[+raw],items[+raw]?.[1]);
+ });
+ document.querySelectorAll('#tray [data-wear]').forEach(btn=>applyVerifiedWardrobePhoto(btn.querySelector('.thumb'),items[+btn.dataset.wear],'补图'));
+};
+new MutationObserver(()=>queueMicrotask(syncWardrobePhotoElements)).observe(document.querySelector('#itemGrid'),{childList:true});
+setTimeout(syncWardrobePhotoElements,0);
 if(didRepairWardrobeThumbnailsV2)setTimeout(()=>toast('已移除重复的错误缩略图，单品资料已保留'),120);
 
 
