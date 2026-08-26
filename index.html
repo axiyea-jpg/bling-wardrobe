@@ -788,10 +788,10 @@ $('#modalBody').addEventListener('change',async e=>{
 $('#modalBody').addEventListener('input',e=>{const i=+e.target.dataset.draftIndex,f=e.target.dataset.draftField;if(f&&importDrafts[i])importDrafts[i][f]=e.target.value});
 function confirmLocalImportDrafts(){
  if(!importDrafts.length){toast('还没有可导入的单品');return}
- const a=items.length,b=seasons.length,c=itemMeta.length,total=importDrafts.length;
+ const a=items.length,b=seasons.length,c=itemMeta.length,total=importDrafts.length,importedCategories=[...new Set(importDrafts.map(d=>d.category||'上衣'))];
  importDrafts.forEach(d=>{const index=items.length,meta=[d.color||'待确认',d.material||'待确认',d.style||'日常',d.shape||'常规版型'],season=d.season||'四季',image=d.image||'';items.push([d.name||'未命名单品',d.category||'上衣',image?'imported':'missing-photo',image,d.source||'',meta.slice(),season,'',d.crop||{zoom:1,offsetX:0,offsetY:0}]);seasons[index]=season;itemMeta[index]=meta});
  try{saveWardrobe()}catch(err){items.splice(a);seasons.splice(b);itemMeta.splice(c);toast('照片较多，本地空间不足；请减少数量后分批导入');return}
- categoryOverviewMode=true;category='全部';activeSeason='';if($('#seasonSelect'))$('#seasonSelect').value='';wardrobePage=1;importDrafts=[];render();$('#modal').classList.remove('show');toast('已加入衣橱 '+total+' 件 ✦');
+ importDrafts=[];$('#modal').classList.remove('show');go('wardrobe');categoryOverviewMode=importedCategories.length!==1;category=importedCategories.length===1?importedCategories[0]:'全部';activeSeason='';if($('#seasonSelect'))$('#seasonSelect').value='';wardrobePage=1;selectedItems.clear();render();$('.screen').scrollTo({top:0,behavior:'smooth'});toast('已加入衣橱 '+total+' 件 ✦');
 }
 document.addEventListener('click',e=>{const button=e.target.closest('#confirmBatchImport');if(!button)return;e.preventDefault();e.stopImmediatePropagation();confirmLocalImportDrafts()},true);
 $('#modalBody').addEventListener('click',async e=>{
