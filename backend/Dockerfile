@@ -6,7 +6,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 COPY app ./app
 COPY model_data ./model_data
+RUN python -m app.fetch_body_model
 RUN mkdir -p /data
 ENV PORT=8080 BLING_DATA_DIR=/data
 CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT}"]
-

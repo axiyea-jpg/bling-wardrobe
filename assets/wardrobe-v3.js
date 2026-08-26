@@ -51,7 +51,7 @@
   const auth = {
     value: null,
     async get() {
-      if (this.value?.idToken) return this.value;
+      if (this.value?.idToken && this.value?.expiresAt > Date.now() + 60000) return this.value;
       try { this.value = JSON.parse(localStorage.getItem(AUTH_KEY) || 'null'); } catch (_) {}
       const fb = config.firebase;
       if (!fb?.apiKey) return this.value || {idToken: ''};
@@ -368,6 +368,12 @@
     const profileNote = q('#profile .profile small');
     if (profileNote) profileNote.textContent = '衣橱照片加密保存在私有云端';
     renderWardrobe(); renderDressing('manual');
+    if (config.apiBase && window.BlingGeneration?.config) {
+      try {
+        const identity = await auth.get();
+        window.BlingGeneration.config.set(config.apiBase, identity.idToken || '');
+      } catch (_) {}
+    }
     await refreshGarments();
   }
 

@@ -7,6 +7,7 @@ numpy==2.2.6
 scipy==1.15.3
 scikit-learn==1.7.1
 trimesh==4.7.1
+scikit-image==0.25.2
 Pillow==11.3.0
 aiofiles==24.1.0
 httpx==0.28.1

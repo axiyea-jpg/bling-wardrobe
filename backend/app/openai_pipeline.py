@@ -12,7 +12,7 @@ from PIL import Image
 
 from .schemas import TryOnRequest
 from .settings import settings
-from .store import body_models
+from .cloud_store import body_store
 from .cloud_store import garment_store, object_store, reference_store
 
 
@@ -116,8 +116,8 @@ def generate_tryon(uid: str, request: TryOnRequest) -> dict:
             raise HTTPException(409, detail={"code": "garment_not_ready", "message": "所选衣物尚未完成抠图确认。", "garment_id": garment_id})
         rows.append(row)
     if request.model_mode == "digital":
-        model = body_models.get(request.body_model_id or "")
-        model_path = Path(model["front_reference_path"]) if model and model.get("front_reference_path") else None
+        model = body_store.get(uid, request.body_model_id or "")
+        model_path = object_store.materialize(model["front_reference_object"]) if model and model.get("front_reference_object") else None
     else:
         ref = reference_store.get(uid, request.reference_photo_id or "")
         model_path = ref and object_store.materialize(ref.get("object_name", ""))

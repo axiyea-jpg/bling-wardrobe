@@ -11,13 +11,18 @@ class User:
     uid: str
 
 
-def current_user(authorization: Annotated[str | None, Header()] = None) -> User:
+def current_user(
+    authorization: Annotated[str | None, Header()] = None,
+    x_bling_token: Annotated[str | None, Header()] = None,
+) -> User:
     """Verify Firebase anonymously-authenticated users in production.
 
     Local development remains frictionless when no Firebase project is configured.
     """
     if not settings.firebase_project_id:
         return User("local-owner")
+    if (not authorization or not authorization.startswith("Bearer ")) and x_bling_token:
+        authorization = "Bearer " + x_bling_token
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(401, detail={"code": "auth_required", "message": "私有衣橱身份已失效，请刷新页面。"})
     try:

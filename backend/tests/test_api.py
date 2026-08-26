@@ -27,13 +27,20 @@ def test_health_reports_optional_services_without_faking_them():
     assert isinstance(body["generation_ready"], bool)
 
 
-def test_missing_body_weights_returns_actionable_503():
+def test_body_endpoint_generates_a_real_glb_without_optional_weights():
     response = client.post("/api/body-models", json={
         "height": 162, "weight": 52, "bust": 84,
         "waist": 66, "hip": 92, "shoulder": 38,
     })
-    assert response.status_code == 503
-    assert response.json()["detail"]["code"] == "body_model_unavailable"
+    assert response.status_code == 200
+    result = response.json()
+    assert result["body_model_id"]
+    assert result["glb_url"].endswith(".glb")
+    glb = client.get(result["glb_url"])
+    assert glb.status_code == 200
+    assert glb.content[:4] == b"glTF"
+    assert len(glb.content) > 20_000
+    assert client.get(result["front_reference_url"]).status_code == 200
 
 
 def upload_one(name: str, raw: bytes) -> dict:

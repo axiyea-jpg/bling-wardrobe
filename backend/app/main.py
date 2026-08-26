@@ -10,11 +10,10 @@ from fastapi.responses import FileResponse
 
 from .auth import User, current_user
 from .body_shape import body_service
-from .cloud_store import garment_store, job_store, object_store, reference_store
+from .cloud_store import body_store, garment_store, job_store, object_store, reference_store
 from .openai_pipeline import analyze_and_cutout, generate_modeled_preview, generate_tryon
 from .schemas import BodyMeasurements, BodyModelResult, Garment, GarmentPatch, ImportJobRequest, Job, TryOnRequest
 from .settings import settings
-from .store import body_models
 from .task_queue import dispatch
 
 app = FastAPI(title="Bling Wardrobe Cloud API", version="3.0.0")
@@ -23,7 +22,7 @@ app.add_middleware(
     allow_origins=[settings.frontend_origin, "http://localhost:8000", "http://127.0.0.1:8000"],
     allow_credentials=False,
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allow_headers=["Authorization", "Content-Type"],
+    allow_headers=["Authorization", "Content-Type", "X-Bling-Token"],
 )
 
 
@@ -46,7 +45,7 @@ def public_job(row: dict) -> dict:
 @app.get("/api/health")
 def health() -> dict:
     return {
-        "ok": True, "body_model_ready": body_service.available,
+        "ok": True, "body_model_ready": body_service.available, "body_model_backend": body_service.backend_name,
         "generation_ready": bool(settings.openai_api_key), "cloud_storage_ready": object_store.cloud,
         "firebase_auth_required": bool(settings.firebase_project_id),
     }
@@ -67,7 +66,7 @@ def local_object(path: str, user: User = Depends(current_user)) -> FileResponse:
 
 @app.post("/api/body-models", response_model=BodyModelResult)
 def create_body_model(body: BodyMeasurements, user: User = Depends(current_user)) -> BodyModelResult:
-    return body_service.generate(body)
+    return body_service.generate(body, user.uid)
 
 
 @app.post("/api/import/jobs")
@@ -149,9 +148,9 @@ def process_import(uid: str, job_id: str) -> None:
                 "modeled_preview_object": "", **analyzed,
             }
             model_reference = settings.default_model_reference
-            selected_model = body_models.get(row.get("body_model_id") or "")
-            if selected_model and selected_model.get("front_reference_url"):
-                candidate = Path(selected_model["front_reference_url"])
+            selected_model = body_store.get(uid, row.get("body_model_id") or "")
+            if selected_model and selected_model.get("front_reference_object"):
+                candidate = object_store.materialize(selected_model["front_reference_object"])
                 if candidate.exists():
                     model_reference = candidate
             if settings.openai_api_key and model_reference.exists() and cutout_object:

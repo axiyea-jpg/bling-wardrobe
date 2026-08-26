@@ -17,7 +17,7 @@ The proprietary MPI Body Visualizer application and its restricted assets are no
 - Code license: MIT
 - Use: anthropometric measurement completion and local-RFE full-mesh reconstruction adapter.
 
-The upstream research weights and training-data provenance must be reviewed separately before production distribution. They are intentionally not bundled in this repository.
+The production container downloads the upstream released female local-RFE runtime weights during its build. The weights are not committed to this repository. Their training-data provenance must still be reviewed before commercial distribution.
 
 ## Wardrobe
 

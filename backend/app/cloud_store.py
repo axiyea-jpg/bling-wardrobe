@@ -142,4 +142,5 @@ class ObjectStore:
 garment_store = UserStore("garments")
 job_store = UserStore("jobs")
 reference_store = UserStore("references")
+body_store = UserStore("body_models")
 object_store = ObjectStore()
