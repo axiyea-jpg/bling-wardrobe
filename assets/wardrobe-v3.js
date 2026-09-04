@@ -1,7 +1,7 @@
 (function () {
   'use strict';
 
-  const SCHEMA_KEY = 'bling-wardrobe-schema-v3';
+  const SCHEMA_KEY = 'bling-wardrobe-schema-v4';
   const OUTFIT_KEY = 'bling-outfit-v3';
   const AUTH_KEY = 'bling-anonymous-auth-v1';
   const BODY_MODEL_KEY = 'bling-body-model-id-v2';
@@ -13,6 +13,7 @@
     'bling-wardrobe-thumbnail-repair-v2', 'bling-wardrobe-clean-reset-v1'
   ];
   const CATEGORIES = ['\u4e0a\u8863', '\u5916\u5957', '\u88e4\u5b50', '\u88d9\u5b50', '\u978b', '\u5305', '\u914d\u9970', '\u5934\u5dfe'];
+  const SEASONS = ['全部','春','夏','秋','冬','春夏','秋冬','四季'];
   const CATEGORY_ICONS = {
     '\u4e0a\u8863':'top', '\u5916\u5957':'outer', '\u88e4\u5b50':'pants', '\u88d9\u5b50':'skirt',
     '\u978b':'shoes', '\u5305':'bag', '\u914d\u9970':'accessory', '\u5934\u5dfe':'scarf'
@@ -29,12 +30,16 @@
   const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
   function migrate() {
-    if (localStorage.getItem(SCHEMA_KEY) === '3') return;
+    if (localStorage.getItem(SCHEMA_KEY) === '4') return [];
+    let legacy=[];try{const rows=JSON.parse(localStorage.getItem('bling-items')||'[]'),imagePrefix='data:'+'image/',frequencies={};rows.forEach(row=>{if(typeof row?.[3]==='string'&&row[3].startsWith(imagePrefix))frequencies[row[3]]=(frequencies[row[3]]||0)+1});legacy=rows.filter(row=>row?.[2]==='imported'&&typeof row?.[3]==='string'&&row[3].startsWith(imagePrefix)&&frequencies[row[3]]===1).map((row,index)=>({name:(row[0]||'迁移单品')+'.jpg',data:row[3],index}))}catch(_){}
     LEGACY_KEYS.forEach(key => localStorage.removeItem(key));
     localStorage.removeItem(OUTFIT_KEY);
-    localStorage.setItem(SCHEMA_KEY, '3');
+    localStorage.setItem(SCHEMA_KEY, '4');
     document.documentElement.style.removeProperty('--items-img');
+    return legacy;
   }
+
+  function legacyFile(row){const parts=row.data.split(','),mime=(parts[0].match(/data:([^;]+)/)||[])[1]||'image/jpeg',bytes=atob(parts[1]||''),data=new Uint8Array(bytes.length);for(let i=0;i<bytes.length;i++)data[i]=bytes.charCodeAt(i);return new File([data],row.name,{type:mime})}
 
   function toast(message) {
     const el = q('#toast');
@@ -86,8 +91,8 @@
   const api = {
     async request(path, options = {}) {
       if (!config.apiBase) {
-        const error = Error('云端衣橱尚未部署，当前不会保存或伪造任何图片');
-        error.code = 'cloud_not_configured';
+        const error = Error('本地衣橱服务未启动，请双击“启动布灵本地版.bat”后再试');
+        error.code = 'local_service_not_configured';
         throw error;
       }
       const identity = await auth.get();
@@ -102,7 +107,7 @@
       try { body = await response.json(); } catch (_) {}
       if (!response.ok) {
         const detail = body?.detail || body || {};
-        const error = Error(detail.message || '云端衣橱暂时不可用');
+        const error = Error(detail.message || '本地衣橱服务未连接，请保持启动窗口开启');
         error.code = detail.code || 'api_error';
         throw error;
       }
@@ -111,6 +116,13 @@
     async listGarments() {
       const result = await this.request('/api/garments?status=approved&limit=200');
       return (result.items || []).map(normalizeGarment);
+    },
+    status() { return this.request('/api/system/status'); },
+    importUrl(url) { return this.request('/api/import/url', {method:'POST', json:{url}}); },
+    importPhotos(files) {
+      const form = new FormData();
+      files.forEach(file => form.append('files', file, file.name));
+      return this.request('/api/import/photos', {method:'POST', body:form});
     },
     async createImport(files) {
       const manifests = [];
@@ -128,6 +140,10 @@
     completeImport(id) { return this.request('/api/import/jobs/' + encodeURIComponent(id) + '/complete', {method:'POST'}); },
     getJob(id) { return this.request('/api/jobs/' + encodeURIComponent(id)); },
     approve(id) { return this.request('/api/garments/' + encodeURIComponent(id) + '/approve', {method:'POST'}); },
+    patch(id, values) { return this.request('/api/garments/' + encodeURIComponent(id), {method:'PATCH', json:values}); },
+    crop(id, values) { return this.request('/api/garments/' + encodeURIComponent(id) + '/crop', {method:'POST', json:values}); },
+    reanalyze(id) { return this.request('/api/garments/' + encodeURIComponent(id) + '/reanalyze', {method:'POST'}); },
+    process(id, mode) { return this.request('/api/garments/' + encodeURIComponent(id) + '/process', {method:'POST', json:{mode}}); },
     remove(id) { return this.request('/api/garments/' + encodeURIComponent(id), {method:'DELETE'}); },
     tryOn(garmentIds, quality = 'draft') {
       return this.request('/api/tryon/jobs', {method:'POST', json:{model_mode:'digital', body_model_id:localStorage.getItem(BODY_MODEL_KEY) || '', garment_ids:[...new Set(garmentIds)], scene:'日常通勤', quality}});
@@ -141,12 +157,13 @@
       season:row.season || '四季', color:row.color || '待识别', material:row.material || '待识别',
       style:row.style || '日常', fit:row.fit || '常规版型', tags:Array.isArray(row.tags) ? row.tags : [],
       status:row.status || 'processing', originalUrl:row.original_url || '', cutoutUrl:row.cutout_url || '',
-      thumbnailUrl:row.thumbnail_url || '', modeledPreviewUrl:row.modeled_preview_url || ''
+      whiteBgUrl:row.white_bg_url || '', thumbnailUrl:row.thumbnail_url || '', modeledPreviewUrl:row.modeled_preview_url || '',
+      lockedFields:row.locked_fields || [], confidence:row.confidence || {}
     };
   }
 
   const state = {
-    garments: [], loading: false, category: null, search: '', selected: new Set(), manage: false,
+    garments: [], loading: false, category: null, season: '全部', page: 1, pageSize: 8, search: '', selected: new Set(), manage: false, serviceStatus: null,
     outfit: {top:null, outerwear:null, bottom:null, dress:null, shoes:null, bag:null, accessory:[], headscarf:null},
     activeImage: '', tryonTimer: null, tryonGeneration: 0,
     loadOutfit() {
@@ -174,15 +191,26 @@
     const page = q('#wardrobe');
     if (!page) return;
     const search = state.search.toLowerCase();
-    const filtered = state.garments.filter(g => (!state.category || g.category === state.category) && (!search || [g.name,g.category,g.color,g.material,g.style,g.fit,...g.tags].join(' ').toLowerCase().includes(search)));
-    page.innerHTML = '<div class="title wardrobe-title"><div><p class="eyebrow">MY WARDROBE</p><h1>我的衣橱</h1></div><span class="count">'+state.garments.length+' 件</span></div>'+
-      '<div class="search wardrobe-search">⌕<input data-v3-search placeholder="搜索名称、分类或标签" value="'+esc(state.search)+'"></div>'+
-      '<div class="v3-wardrobe-actions"><button data-v3-import>＋ 批量导入</button>'+(state.category?'<button data-v3-back>‹ 全部分类</button>':'')+'</div>'+
-      (state.loading ? '<div class="v3-empty">正在读取私有云端衣橱…</div>' : !state.category ? categoryMarkup() : garmentGrid(filtered));
+    const filtered = state.garments.filter(g => (!state.category || g.category === state.category) && (state.season==='全部'||g.season===state.season) && (!search || [g.name,g.category,g.color,g.material,g.style,g.fit,...g.tags].join(' ').toLowerCase().includes(search)));
+    const pages=Math.max(1,Math.ceil(filtered.length/state.pageSize));state.page=Math.min(state.page,pages);const shown=filtered.slice((state.page-1)*state.pageSize,state.page*state.pageSize);
+    page.innerHTML = '<div class="title wardrobe-title"><div><p class="eyebrow">MY WARDROBE</p><h1>我的衣橱</h1></div><span class="count">'+state.garments.length+' 件</span></div>'+ 
+      '<div class="search wardrobe-search">⌕<input data-v3-search placeholder="搜索名称、分类或标签" value="'+esc(state.search)+'"></div>'+ 
+      (state.category?'<div class="detail-toolbar"><button data-v3-back>‹ 全部分类</button><b>'+esc(state.category)+'</b><label>季节 <select data-v3-season>'+SEASONS.map(s=>'<option '+(s===state.season?'selected':'')+'>'+s+'</option>').join('')+'</select></label></div><div class="compact-actions"><button data-v3-import>＋ 导入单品</button><button data-v3-manage>☑ 批量整理</button><label>每页 <select data-v3-page-size>'+[4,8,12,20].map(n=>'<option '+(n===state.pageSize?'selected':'')+'>'+n+'</option>').join('')+'</select></label></div>'+(state.manage?'<div class="bulkbar"><button data-v3-select-page>全选本页</button><span>已选 '+state.selected.size+' 件</span><button class="danger" data-v3-delete-selected>删除</button><button data-v3-manage>完成</button></div>':''):'')+
+      (state.loading ? '<div class="v3-empty">正在读取本地衣橱…</div>' : !state.category ? categoryMarkup() : garmentGrid(shown)+pagerMarkup(pages));
+  }
+
+  function shownGarmentIds() {
+    const search = state.search.toLowerCase();
+    return state.garments
+      .filter(g => (!state.category || g.category === state.category) &&
+        (state.season === '全部' || g.season === state.season) &&
+        (!search || [g.name,g.category,g.color,g.material,g.style,g.fit,...g.tags].join(' ').toLowerCase().includes(search)))
+      .slice((state.page - 1) * state.pageSize, state.page * state.pageSize)
+      .map(g => g.id);
   }
 
   function categoryMarkup() {
-    return '<div class="category-overview"><div class="category-head"><div><b>按类别浏览</b><small>选择一类，再查看里面的单品</small></div></div><div class="category-grid">'+CATEGORIES.map(category => {
+    return '<div class="category-overview"><div class="category-head"><div><b>按类别浏览</b><small>选择一类，再查看里面的单品</small></div><button class="compact-import" data-v3-import>＋ 导入</button></div><div class="category-grid">'+CATEGORIES.map(category => {
       const count = state.garments.filter(g => g.category === category).length;
       return '<button class="category-card" data-v3-category="'+esc(category)+'"><span class="cat-icon cat-icon-'+CATEGORY_ICONS[category]+'" aria-hidden="true"></span><span><b>'+esc(category)+'</b><small>'+count+' 件单品</small></span><em>›</em></button>';
     }).join('')+'</div></div>';
@@ -190,13 +218,16 @@
 
   function garmentGrid(rows) {
     if (!rows.length) return '<div class="v3-empty">这个分类还没有单品<br><button data-v3-import>从相册导入</button></div>';
-    return '<div class="grid v3-garment-grid">'+rows.map(g => '<article class="item" data-garment-id="'+esc(g.id)+'"><button class="item-main" data-v3-garment="'+esc(g.id)+'"><div class="itempic">'+imageMarkup(g,'v3-thumb')+'</div><b>'+esc(g.name)+'</b><div class="auto-tags">'+[g.color,g.material,g.fit].filter(Boolean).slice(0,3).map(t=>'<em>'+esc(t)+'</em>').join('')+'</div></button><div class="item-actions"><button data-v3-garment="'+esc(g.id)+'">查看编辑</button><button class="danger" data-v3-delete="'+esc(g.id)+'">移除</button></div></article>').join('')+'</div>';
+    return '<div class="grid v3-garment-grid">'+rows.map(g => '<article class="item '+(state.selected.has(g.id)?'selected':'')+'" data-garment-id="'+esc(g.id)+'">'+(state.manage?'<button class="item-check" data-v3-select="'+esc(g.id)+'">'+(state.selected.has(g.id)?'✓':'')+'</button>':'')+'<button class="item-main" data-v3-garment="'+esc(g.id)+'"><div class="itempic">'+imageMarkup(g,'v3-thumb')+'</div><b>'+esc(g.name)+'</b><div class="auto-tags">'+[g.color,g.material,g.fit].filter(Boolean).slice(0,3).map(t=>'<em>'+esc(t)+'</em>').join('')+'</div></button><div class="item-actions"><button data-v3-garment="'+esc(g.id)+'">查看编辑</button><button class="danger" data-v3-delete="'+esc(g.id)+'">移除</button></div></article>').join('')+'</div>';
   }
+
+  function pagerMarkup(pages){if(pages<=1)return '';return '<div class="v3-pager">'+Array.from({length:pages},(_,i)=>'<button class="'+(state.page===i+1?'on':'')+'" data-v3-page="'+(i+1)+'">'+(i+1)+'</button>').join('')+'</div>'}
 
   function openImport() {
     const body = q('#modalBody');
-    body.innerHTML = '<h2>\u6dfb\u52a0\u5230\u8863\u6a71</h2><p class="import-intro">\u9009\u62e9\u4f60\u4e60\u60ef\u7684\u5bfc\u5165\u65b9\u5f0f\uff0c\u5bfc\u5165\u540e\u4ecd\u53ef\u7f16\u8f91\u56fe\u7247\u548c\u6807\u7b7e\u3002</p><div class="v3-import-sources"><label class="v3-import-source"><input data-v3-file-input type="file" accept="image/*" multiple hidden><span class="v3-import-icon">\u25a3</span><b>\u4ece\u76f8\u518c\u4e0a\u4f20</b><small>\u53ef\u4e00\u6b21\u9009\u62e9\u591a\u5f20\u7167\u7247</small></label><button class="v3-import-source" data-v3-link-panel><span class="v3-import-icon">\u2197</span><b>\u590d\u5236\u5546\u54c1\u9875\u94fe\u63a5</b><small>\u652f\u6301\u5546\u54c1\u9875\u6216\u56fe\u7247\u94fe\u63a5</small></button><label class="v3-import-source"><input data-v3-camera-input type="file" accept="image/*" capture="environment" hidden><span class="v3-import-icon">\u25c9</span><b>\u76f4\u63a5\u62cd\u7167</b><small>\u6253\u5f00\u76f8\u673a\u62cd\u6444\u5355\u4ef6\u8863\u7269</small></label></div><div data-v3-import-progress></div>';
+    body.innerHTML = '<h2>\u6dfb\u52a0\u5230\u8863\u6a71</h2><p class="import-intro">\u9009\u62e9\u4f60\u4e60\u60ef\u7684\u5bfc\u5165\u65b9\u5f0f\uff0c\u5bfc\u5165\u540e\u4ecd\u53ef\u7f16\u8f91\u56fe\u7247\u548c\u6807\u7b7e\u3002</p><div class="v3-import-sources"><label class="v3-import-source"><input data-v3-file-input type="file" accept="image/*" multiple hidden><span class="v3-import-icon">\u25a3</span><b>\u4ece\u76f8\u518c\u4e0a\u4f20</b><small>\u53ef\u4e00\u6b21\u9009\u62e9\u591a\u5f20\u7167\u7247</small></label><button class="v3-import-source" data-v3-link-panel><span class="v3-import-icon">\u2197</span><b>\u590d\u5236\u5546\u54c1\u9875\u94fe\u63a5</b><small>\u652f\u6301\u5546\u54c1\u9875\u6216\u56fe\u7247\u94fe\u63a5</small></button><label class="v3-import-source"><input data-v3-camera-input type="file" accept="image/*" capture="environment" hidden><span class="v3-import-icon">\u25c9</span><b>\u76f4\u63a5\u62cd\u7167</b><small>\u6253\u5f00\u76f8\u673a\u62cd\u6444\u5355\u4ef6\u8863\u7269</small></label></div><div class="v3-progress" data-v3-local-state>\u6b63\u5728\u68c0\u67e5\u672c\u5730\u8863\u6a71\u670d\u52a1\u2026</div><div data-v3-import-progress></div>';
     q('#modal').classList.add('show');
+    api.status().then(()=>{const el=q('[data-v3-local-state]');if(el){el.textContent='● \u672c\u5730\u8863\u6a71\u670d\u52a1\u5df2\u8fde\u63a5\uff0c\u53ef\u4ee5\u4e0a\u4f20\u3001\u62a0\u56fe\u5e76\u4fdd\u5b58';el.classList.add('connected')}}).catch(error=>{const el=q('[data-v3-local-state]');if(el){el.className='v3-error';el.textContent=error.message}});
   }
 
   function openLinkImport() {
@@ -212,21 +243,8 @@
       const files = [];
       for (let i = 0; i < urls.length; i++) {
         if (host) host.innerHTML = '<p class="v3-progress">\u6b63\u5728\u8bfb\u53d6\u94fe\u63a5 '+(i+1)+' / '+urls.length+'</p>';
-        let source = urls[i];
-        let response = await fetch(source, {mode:'cors'});
-        if (!response.ok) throw Error('\u65e0\u6cd5\u8bfb\u53d6\u8be5\u94fe\u63a5');
-        let type = response.headers.get('content-type') || '';
-        if (type.includes('text/html')) {
-          const doc = new DOMParser().parseFromString(await response.text(), 'text/html');
-          const image = doc.querySelector('meta[property="og:image"]')?.content || doc.querySelector('meta[name="twitter:image"]')?.content;
-          if (!image) throw Error('\u8be5\u5546\u54c1\u9875\u672a\u627e\u5230\u53ef\u5bfc\u5165\u7684\u5546\u54c1\u56fe');
-          source = new URL(image, source).href;
-          response = await fetch(source, {mode:'cors'});
-          if (!response.ok) throw Error('\u5546\u54c1\u56fe\u8bfb\u53d6\u5931\u8d25');
-          type = response.headers.get('content-type') || 'image/jpeg';
-        }
-        if (!type.startsWith('image/')) throw Error('\u94fe\u63a5\u4e0d\u662f\u53ef\u7528\u7684\u56fe\u7247');
-        const blob = await response.blob();
+        const candidate=(await api.importUrl(urls[i])).candidate;const source=candidate.images?.[0];if(!source)throw Error('商品页没有可用主图');
+        const response=await fetch(source);if(!response.ok)throw Error('商品主图读取失败，请使用网页助手或相册上传');const blob=await response.blob();
         files.push(new File([blob], 'product-'+(i+1)+'.'+(blob.type.split('/')[1] || 'jpg'), {type:blob.type || 'image/jpeg'}));
       }
       await importFiles(files);
@@ -240,14 +258,8 @@
     if (!list.length) return;
     const host = q('[data-v3-import-progress]');
     try {
-      host.innerHTML = '<p class="v3-progress">正在建立上传任务…</p>';
-      const job = await api.createImport(list);
-      for (let i = 0; i < list.length; i++) {
-        if (job.uploads[i].duplicate) continue;
-        host.innerHTML = '<p class="v3-progress">正在上传 '+(i+1)+' / '+list.length+'：'+esc(list[i].name)+'</p><progress max="'+list.length+'" value="'+(i+1)+'"></progress>';
-        await api.uploadFile(job.uploads[i], list[i]);
-      }
-      await api.completeImport(job.id);
+      host.innerHTML = '<p class="v3-progress">正在上传 '+list.length+' 张照片到本地衣橱…</p><progress></progress>';
+      const job = await api.importPhotos(list);
       const result = await waitJob(job.id, host, '正在识别、抠图并生成上身图');
       await showImportReview(result.garments || []);
     } catch (error) {
@@ -256,8 +268,17 @@
   }
 
   async function waitJob(id, host, label) {
+    let transientErrors = 0;
     for (let attempt = 0; attempt < 180; attempt++) {
-      const job = await api.getJob(id);
+      let job;
+      try { job = await api.getJob(id); transientErrors = 0; }
+      catch (error) {
+        transientErrors++;
+        if (transientErrors >= 6) throw error;
+        if (host) host.innerHTML = '<p class="v3-progress">本地任务仍在处理，正在重新连接（'+transientErrors+'/5）…</p>';
+        await sleep(900);
+        continue;
+      }
       if (host) host.innerHTML = '<p class="v3-progress">'+esc(label)+' · '+(job.progress || 0)+'%</p><progress max="100" value="'+(job.progress || 0)+'"></progress>';
       if (job.status === 'ready' || job.status === 'review') return job.result || {};
       if (job.status === 'failed') throw Error(job.error?.message || '处理失败');
@@ -274,14 +295,14 @@
 
   async function approveGarment(id, button) {
     button.disabled = true; button.textContent = '处理中…';
-    try { await api.approve(id); button.textContent = '已确认'; await refreshGarments(); }
+    try { const approved=normalizeGarment(await api.approve(id));button.textContent = '已确认';state.category=approved.category;state.season='全部';state.page=1;await refreshGarments();q('#modal')?.classList.remove('show');navigate('wardrobe');setTimeout(()=>q('[data-garment-id="'+CSS.escape(id)+'"]')?.scrollIntoView({behavior:'smooth',block:'center'}),80); }
     catch (error) { button.disabled = false; button.textContent = '重试'; toast(error.message); }
   }
 
   async function refreshGarments() {
     state.loading = true; renderWardrobe();
-    try { state.garments = dedupeById(await api.listGarments()); }
-    catch (error) { state.garments = []; if (error.code !== 'cloud_not_configured') toast(error.message); }
+    try { state.garments = dedupeById(await api.listGarments());state.serviceStatus=await api.status(); }
+    catch (error) { state.garments = []; if (error.code !== 'local_service_not_configured') toast(error.message); }
     finally { state.loading = false; renderWardrobe(); }
   }
 
@@ -330,6 +351,11 @@
     const rows = dedupeById(state.garments.filter(g => categories.includes(g.category)));
     const selected = layer === 'accessory' ? state.outfit.accessory[0] : state.outfit[layer];
     q('#modalBody').innerHTML = '<h2>选择'+esc(entry?.[1] || '单品')+'</h2><div class="garment-picker">'+(rows.length?rows.map(g=>'<button class="garment-pick '+(selected===g.id?'on':'')+'" data-v3-pick="'+esc(g.id)+'"><span class="pick-img">'+imageMarkup(g,'v3-picker-img')+'</span><span><b>'+esc(g.name)+'</b><small>'+[g.color,g.material,g.fit].map(esc).join(' · ')+'</small></span><em>›</em></button>').join(''):'<p class="v3-empty">这个分类还没有可用单品</p>')+'</div>';
+    q('#modal').classList.add('show');
+  }
+
+  function openGarmentEditor(g){
+    q('#modalBody').innerHTML='<h2>编辑单品信息</h2><div class="v3-editor-preview">'+imageMarkup(g,'v3-detail-img')+'</div><div class="v3-preview-tabs"><a href="'+esc(g.originalUrl)+'" target="_blank">原图</a>'+(g.cutoutUrl?'<a href="'+esc(g.cutoutUrl)+'" target="_blank">透明图</a>':'')+(g.whiteBgUrl?'<a href="'+esc(g.whiteBgUrl)+'" target="_blank">白底图</a>':'')+'</div><div class="v3-edit-grid"><label>名称<input data-edit-name value="'+esc(g.name)+'"></label><label>分类<select data-edit-category>'+CATEGORIES.map(v=>'<option '+(v===g.category?'selected':'')+'>'+v+'</option>').join('')+'</select></label><label>季节<select data-edit-season>'+SEASONS.slice(1).map(v=>'<option '+(v===g.season?'selected':'')+'>'+v+'</option>').join('')+'</select></label><label>色系<input data-edit-color value="'+esc(g.color)+'"></label><label>材质<input data-edit-material value="'+esc(g.material)+'"></label><label>风格<input data-edit-style value="'+esc(g.style)+'"></label><label>版型<input data-edit-fit value="'+esc(g.fit)+'"></label></div><details class="v3-crop"><summary>裁剪与旋转</summary><div><label>X<input type="range" min="0" max=".8" step=".01" value="0" data-crop-x></label><label>Y<input type="range" min="0" max=".8" step=".01" value="0" data-crop-y></label><label>宽<input type="range" min=".2" max="1" step=".01" value="1" data-crop-width></label><label>高<input type="range" min=".2" max="1" step=".01" value="1" data-crop-height></label><label>旋转<input type="range" min="-30" max="30" step="1" value="0" data-crop-rotation></label></div><button data-v3-crop="'+esc(g.id)+'">应用并重新抠图</button></details><div class="v3-ai-option"><button data-v3-ai-rebuild="'+esc(g.id)+'">AI 统一重建（需兼容 GPU）</button><small>AI 图会明确标注，不覆盖原图与基础抠图。</small></div><div class="v3-editor-actions"><button data-v3-reanalyze="'+esc(g.id)+'">重新识别</button><button class="primary" data-v3-save="'+esc(g.id)+'">保存修改</button></div>';
     q('#modal').classList.add('show');
   }
 
@@ -389,10 +415,15 @@
       if (target.hasAttribute('data-v3-link-panel')) { openLinkImport(); return; }
       if (target.hasAttribute('data-v3-import-menu')) { openImport(); return; }
       if (target.hasAttribute('data-v3-link-submit')) { importLinks(q('[data-v3-link-input]')?.value || ''); return; }
-      if (target.dataset.v3Category) { state.category=target.dataset.v3Category; renderWardrobe(); return; }
+      if (target.dataset.v3Category) { state.category=target.dataset.v3Category;state.season='全部';state.page=1; renderWardrobe(); return; }
       if (target.hasAttribute('data-v3-back')) { state.category=null; renderWardrobe(); return; }
+      if(target.hasAttribute('data-v3-manage')){state.manage=!state.manage;state.selected.clear();renderWardrobe();return}
+      if(target.hasAttribute('data-v3-select-page')){shownGarmentIds().forEach(id=>state.selected.add(id));renderWardrobe();return}
+      if(target.hasAttribute('data-v3-delete-selected')){if(!state.selected.size)return;if(confirm('确定移除已选择的 '+state.selected.size+' 件衣服吗？')){for(const id of [...state.selected])await api.remove(id);state.selected.clear();await refreshGarments()}return}
+      if(target.dataset.v3Select){state.selected.has(target.dataset.v3Select)?state.selected.delete(target.dataset.v3Select):state.selected.add(target.dataset.v3Select);renderWardrobe();return}
+      if(target.dataset.v3Page){state.page=+target.dataset.v3Page;renderWardrobe();return}
       if (target.dataset.v3Delete) { event.preventDefault(); if(confirm('确定移除这件衣服吗？')){try{await api.remove(target.dataset.v3Delete);await refreshGarments()}catch(e){toast(e.message)}} return; }
-      if (target.dataset.v3Garment) { const g=getGarment(target.dataset.v3Garment); if(g){q('#modalBody').innerHTML='<h2>'+esc(g.name)+'</h2><div class="v3-detail-image">'+imageMarkup(g,'v3-detail-img')+'</div><p>'+[g.category,g.season,g.color,g.material,g.style,g.fit].map(esc).join(' · ')+'</p><button class="primary" data-v3-wear="'+esc(g.id)+'">加入当前穿搭</button>';q('#modal').classList.add('show')} return; }
+      if (target.dataset.v3Garment) { const g=getGarment(target.dataset.v3Garment); if(g)openGarmentEditor(g); return; }
       if (target.dataset.v3Wear || target.dataset.v3Pick) { const g=getGarment(target.dataset.v3Wear||target.dataset.v3Pick);if(g){q('#modal').classList.remove('show');equip(g)}return; }
       if (target.dataset.v3Layer) { openPicker(target.dataset.v3Layer); return; }
       if (target.hasAttribute('data-v3-reset')) { state.outfit={top:null,outerwear:null,bottom:null,dress:null,shoes:null,bag:null,accessory:[],headscarf:null};state.activeImage='';state.saveOutfit();renderDressing('manual');return; }
@@ -400,17 +431,21 @@
       if (target.dataset.v3Approve) { approveGarment(target.dataset.v3Approve,target);return; }
       if (target.hasAttribute('data-v3-approve-all')) { for(const button of qa('[data-v3-approve]'))if(!button.disabled)await approveGarment(button.dataset.v3Approve,button);return; }
       if (target.hasAttribute('data-v3-ai-generate')) { generateLooks();return; }
+      if(target.dataset.v3Save){const id=target.dataset.v3Save;try{await api.patch(id,{name:q('[data-edit-name]').value,category:q('[data-edit-category]').value,season:q('[data-edit-season]').value,color:q('[data-edit-color]').value,material:q('[data-edit-material]').value,style:q('[data-edit-style]').value,fit:q('[data-edit-fit]').value});q('#modal').classList.remove('show');await refreshGarments();toast('已保存')}catch(e){toast(e.message)}return}
+      if(target.dataset.v3Reanalyze){try{const g=normalizeGarment(await api.reanalyze(target.dataset.v3Reanalyze));openGarmentEditor(g);toast('已重新识别未锁定字段')}catch(e){toast(e.message)}return}
+      if(target.dataset.v3Crop){try{const v=s=>+q(s).value;const g=normalizeGarment(await api.crop(target.dataset.v3Crop,{x:v('[data-crop-x]'),y:v('[data-crop-y]'),width:v('[data-crop-width]'),height:v('[data-crop-height]'),rotation:v('[data-crop-rotation]')}));openGarmentEditor(g);toast('已重新裁剪并抠图')}catch(e){toast(e.message)}return}
+      if(target.dataset.v3AiRebuild){target.disabled=true;try{await api.process(target.dataset.v3AiRebuild,'ai_generate');toast('AI 重建完成');await refreshGarments()}catch(e){toast(e.message)}finally{target.disabled=false}return}
       if (target.dataset.stylemode) { event.preventDefault();event.stopImmediatePropagation();renderDressing(target.dataset.stylemode); }
     }, true);
-    document.addEventListener('change', event => { if (event.target.matches('[data-v3-file-input],[data-v3-camera-input]')) importFiles(event.target.files); }, true);
+    document.addEventListener('change', event => { if (event.target.matches('[data-v3-file-input],[data-v3-camera-input]')) importFiles(event.target.files);if(event.target.matches('[data-v3-season]')){state.season=event.target.value;state.page=1;renderWardrobe()}if(event.target.matches('[data-v3-page-size]')){state.pageSize=+event.target.value;state.page=1;renderWardrobe()} }, true);
     document.addEventListener('input', event => { if(event.target.matches('[data-v3-search]')){state.search=event.target.value;renderWardrobe();q('[data-v3-search]')?.focus()} }, true);
   }
 
   async function init() {
-    migrate(); state.loadOutfit(); bindEvents();
+    const legacy=migrate(); state.loadOutfit(); bindEvents();
     document.body.classList.add('wardrobe-v3');
     const profileNote = q('#profile .profile small');
-    if (profileNote) profileNote.textContent = '衣橱照片加密保存在私有云端';
+    if (profileNote) profileNote.textContent = '衣橱照片仅保存在这台设备';
     renderWardrobe(); renderDressing('manual');
     if (config.apiBase && window.BlingGeneration?.config) {
       try {
@@ -419,6 +454,7 @@
       } catch (_) {}
     }
     await refreshGarments();
+    if(legacy.length&&state.serviceStatus?.ok){openImport();toast('发现 '+legacy.length+' 件真实旧照片，正在迁移');await importFiles(legacy.map(legacyFile))}
   }
 
   window.BlingWardrobeV3 = {state, api, refresh:refreshGarments, equip};

@@ -1,44 +1,24 @@
-# 布灵布灵生成服务
+# 布灵布灵本地衣橱服务
 
-这是静态 GitHub Pages 前端对应的 v3 私有云端后端。它提供 Firebase 匿名身份、GCS
-直传、Firestore 衣橱、Cloud Tasks 处理、人体网格和 GPT‑Image‑2 真实试衣。
+本地版使用 FastAPI、SQLite 和设备文件目录保存衣物。图片不会写入浏览器 `localStorage`，
+也不会把分类图标或旧雪碧图当作衣物缩略图。
 
-## 本地运行
+## 一键启动
 
-```powershell
-python -m venv .venv
-.venv\Scripts\pip install -r requirements.txt
-$env:BLING_OWNER_TOKEN="your-private-code"
-$env:BLING_OPENAI_API_KEY="..."
-.venv\Scripts\uvicorn app.main:app --reload --port 8080
-```
+在 `source` 目录双击 `启动布灵本地版.bat`。首次启动会创建 `.venv`、安装基础依赖，
+随后打开 <http://127.0.0.1:8765>。基础 CPU 抠图、裁剪、审核、标签编辑和衣橱管理
+不需要付费 API。
 
-将已确认授权的 3D-Human-Body-Shape 女性模板和 RFE 矩阵放入 `model_data/`。
-未配置权重或 OpenAI 密钥时接口会明确返回 503，不会退回旧的假人体或 CSS 贴图。
+数据默认保存在 `source/data/`：SQLite 保存元数据，`garments/{garmentId}/` 保存原图、
+透明图、暖白底图与缩略图。访问 `/api/system/status` 可查看各本地能力状态。
 
-## 生产配置
+## 可选本地模型
 
-Cloud Run 至少配置以下环境变量：
+- 视觉模型放入 `model_data/vision/` 后启用结构化衣物识别；否则使用离线启发式识别并标记低置信度字段。
+- Qwen Image Edit 放入 `model_data/qwen-image-edit/`，并安装 `requirements-ai.txt`。
+- 只有检测到 CUDA、至少 12GB 显存、模型和 AI 依赖时才启用 AI 重建；无 GPU 不影响基础流程。
 
-```text
-BLING_FIREBASE_PROJECT_ID=<project-id>
-BLING_FIRESTORE_PROJECT_ID=<project-id>
-BLING_STORAGE_BUCKET=<private-bucket>
-BLING_PUBLIC_BASE_URL=https://<cloud-run-service>
-BLING_CLOUD_RUN_SERVICE_URL=https://<cloud-run-service>
-BLING_CLOUD_TASKS_PROJECT=<project-id>
-BLING_CLOUD_TASKS_LOCATION=<region>
-BLING_CLOUD_TASKS_QUEUE=bling-generation
-BLING_CLOUD_TASKS_SECRET=<Secret Manager 注入>
-BLING_OPENAI_API_KEY=<Secret Manager 注入>
-```
+## 商品页助手
 
-GCS bucket 只允许 Cloud Run 服务账号访问；浏览器通过 30 分钟签名地址上传和读取。
-为 bucket 配置允许 `https://axiyea-jpg.github.io` 的 `PUT`/`GET` CORS。Firestore 数据位于
-`users/{firebaseUid}/garments|jobs|references`，接口不会接受客户端传入的 user id。
-
-把 Cloud Run URL 和 Firebase Web 配置写入 `assets/bling-config.js`。这些值不是密钥；
-OpenAI key、任务密钥和服务账号凭据禁止进入前端或 GitHub。
-
-没有完成 Firebase、GCS、Firestore、Cloud Tasks、模型参考图和 OpenAI 密钥配置时，
-前端会明确显示“云端衣橱尚未部署”，不会回退到 localStorage、雪碧图或伪试衣。
+`tools/bling-product-page-helper.user.js` 只读取用户当前已打开且有权访问的淘宝、拼多多或
+小红书页面可见内容，并发送到本机服务；不会绕过登录、验证码或反爬机制。

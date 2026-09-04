@@ -8,6 +8,8 @@ class Settings(BaseSettings):
     data_dir: Path = Path("./data")
     model_dir: Path = Path("./model_data")
     frontend_origin: str = "https://axiyea-jpg.github.io"
+    local_origin: str = ""
+    local_port: int = 8765
     owner_token: str = ""
     openai_api_key: str = ""
     vision_model: str = "gpt-5.4-mini"

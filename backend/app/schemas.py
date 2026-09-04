@@ -2,7 +2,7 @@ from typing import Literal
 from pydantic import BaseModel, Field, field_validator
 
 
-Category = Literal["上衣", "外套", "裤子", "裙子", "连衣裙", "鞋", "包", "配饰", "头巾"]
+Category = Literal["上衣", "外套", "裤子", "裙子", "鞋", "包", "配饰", "头巾"]
 JobStatus = Literal["queued", "processing", "review", "ready", "failed"]
 
 
@@ -40,6 +40,9 @@ class GarmentPatch(BaseModel):
     style: str | None = None
     fit: str | None = None
     tags: list[str] | None = None
+    details: list[str] | None = None
+    locked_fields: list[str] | None = None
+    display_variant: Literal["original", "cutout", "white", "ai"] | None = None
 
 
 class Garment(BaseModel):
@@ -52,12 +55,49 @@ class Garment(BaseModel):
     style: str
     fit: str
     tags: list[str] = []
+    details: list[str] = []
+    confidence: dict[str, float] = {}
+    locked_fields: list[str] = []
+    display_variant: str = "white"
     original_url: str
+    source_image_url: str | None = None
     cutout_url: str | None = None
+    white_bg_url: str | None = None
+    ai_url: str | None = None
     thumbnail_url: str | None = None
     modeled_preview_url: str | None = None
     source_hash: str
+    input_type: Literal["clean_product", "worn", "multi_flatlay", "complex_single"] = "clean_product"
+    processing_mode: str = "basic_cutout"
+    ai_required: bool = False
+    ai_status: Literal["not_needed", "pending", "ready", "unavailable", "failed"] = "not_needed"
+    ai_reason: str = ""
+    reconstruction_label: str = "真实基础抠图"
+    detection_bbox: list[float] | None = None
+    candidate_index: int = 0
+    candidate_count: int = 1
+    source_position: int = 0
     status: Literal["processing", "review", "approved", "rejected"] = "processing"
+
+
+class CropRequest(BaseModel):
+    x: float = Field(default=0, ge=0, le=1)
+    y: float = Field(default=0, ge=0, le=1)
+    width: float = Field(default=1, gt=0, le=1)
+    height: float = Field(default=1, gt=0, le=1)
+    rotation: float = Field(default=0, ge=-180, le=180)
+
+
+class ProcessRequest(BaseModel):
+    mode: Literal["cutout", "ai_generate"] = "cutout"
+
+
+class PageCapture(BaseModel):
+    url: str
+    title: str = ""
+    images: list[str] = []
+    description: str = ""
+    variants: list[str] = []
 
 
 class TryOnRequest(BaseModel):

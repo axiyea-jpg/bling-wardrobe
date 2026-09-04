@@ -36,14 +36,41 @@
       const read=()=>Object.fromEntries([...base,...advanced].map(m=>{const raw=document.querySelector('#body-'+m[0]).value;return[m[0],raw===''?null:+raw]}));
       const updateBmi=()=>{const h=+document.querySelector('#body-height').value,w=+document.querySelector('#body-weight').value,value=h>0&&w>0?w/Math.pow(h/100,2):0,bmiValue=document.querySelector('#bodyBmiValue'),bmiState=document.querySelector('#bodyBmiState'),marker=document.querySelector('#bodyBmiMarker');if(!value){bmiValue.textContent='--';bmiState.textContent='等待数据';marker.style.left='0%';return}const rounded=value.toFixed(1);bmiValue.textContent=rounded;let state='健康范围';if(value<18.5)state='偏轻';else if(value<25)state='健康范围';else if(value<30)state='偏高';else if(value<35)state='肥胖 I 级';else state='肥胖 II 级';bmiState.textContent=state;marker.style.left=(Math.max(0,Math.min(100,(value-16.5)/(40-16.5)*100)))+'%'};
       ['#body-height','#body-weight'].forEach(selector=>document.querySelector(selector).addEventListener('input',updateBmi));updateBmi();
+      setTimeout(()=>showBodyGlb('assets/models/generic-rigged-human.glb?v=1',document.querySelector('#anthroViewport'),read(),true).then(()=>{const s=document.querySelector('#bodyModelState');if(s)s.textContent='带骨骼的基础人体已加载，可直接调整数据'}).catch(err=>{const s=document.querySelector('#bodyModelState');if(s)s.textContent=err.message}),0);
+      document.querySelectorAll('[id^="body-"]').forEach(input=>input.addEventListener('input',()=>window.__blingRiggedBody?.apply(read())));
       document.querySelector('#blingReferenceInput').onchange=async e=>{const f=e.target.files[0];if(!f)return;const s=document.querySelector('#bodyModelState');s.textContent='正在私密上传真人参考照…';try{await uploadReference(f);s.textContent='真人参考照已保存，试衣时可切换真人模式'}catch(err){s.textContent=err.message}};
-      document.querySelector('#generateBodyModel').onclick=async()=>{const profile=read();Object.keys(profile).forEach(k=>profile[k]==null&&delete profile[k]);localStorage.setItem('bling-body',JSON.stringify(profile));const state=document.querySelector('#bodyModelState');state.textContent='正在生成连续人体网格…';try{const result=await createBodyModel(profile);state.textContent='3D 身形已生成';await showBodyGlb(result.glb_url,document.querySelector('#anthroViewport'))}catch(err){state.textContent=err.message||'人体生成失败'}};
+      document.querySelector('#generateBodyModel').onclick=async()=>{const profile=read();Object.keys(profile).forEach(k=>profile[k]==null&&delete profile[k]);localStorage.setItem('bling-body',JSON.stringify(profile));localStorage.removeItem(BODY_KEY);const state=document.querySelector('#bodyModelState');try{if(!window.__blingRiggedBody)await showBodyGlb('assets/models/generic-rigged-human.glb?v=1',document.querySelector('#anthroViewport'),profile,true);else window.__blingRiggedBody.apply(profile);state.textContent='骨骼身形已保存，轮廓已连续更新'}catch(err){state.textContent=err.message||'骨骼人体加载失败'}};
     };
   }
-  async function showBodyGlb(url,host){
+  function applyRiggedProfile(model,profile={}){
+    const clamp=(v,min,max)=>Math.max(min,Math.min(max,v));
+    const ratio=(value,base,min=.72,max=1.38)=>clamp((+value||base)/base,min,max);
+    const mix=(a,b,t)=>a+(b-a)*t;
+    const bmi=(+profile.weight||52)/Math.pow((+profile.height||162)/100,2);
+    const fat=clamp(1+(bmi-19.8)*.018,.82,1.32),hip=ratio(profile.hip,92)*fat,waist=ratio(profile.waist,66)*fat,bust=ratio(profile.bust,84)*fat;
+    const thigh=ratio(profile.thigh,52)*fat,knee=ratio(profile.knee,36,.78,1.28),upper=ratio(profile.upper_arm,27,.78,1.3),wrist=ratio(profile.wrist,16,.82,1.2);
+    const boneScale={
+      Skeleton_torso_joint_1:hip, Skeleton_torso_joint_2:mix(hip,waist,.72), torso_joint_3:bust,
+      leg_joint_R_1:thigh,leg_joint_L_1:thigh,
+      leg_joint_R_2:mix(thigh,knee,.48),leg_joint_L_2:mix(thigh,knee,.48),
+      leg_joint_R_3:knee,leg_joint_L_3:knee,
+      leg_joint_R_5:mix(knee,.92,.72),leg_joint_L_5:mix(knee,.92,.72),
+      Skeleton_arm_joint_R:upper,Skeleton_arm_joint_L__4_:upper,
+      Skeleton_arm_joint_R__2_:mix(upper,wrist,.55),Skeleton_arm_joint_L__3_:mix(upper,wrist,.55),
+      Skeleton_arm_joint_R__3_:wrist,Skeleton_arm_joint_L__2_:wrist
+    };
+    model.traverse(node=>{
+      if(node.isBone){if(!node.userData.blingBaseScale)node.userData.blingBaseScale=node.scale.clone();const base=node.userData.blingBaseScale,f=boneScale[node.name]||1;node.scale.set(base.x*f,base.y,base.z*f)}
+      if(node.isSkinnedMesh&&node.morphTargetDictionary){for(const [name,index] of Object.entries(node.morphTargetDictionary)){if(/fat|body|weight|curvy/i.test(name))node.morphTargetInfluences[index]=clamp((bmi-18)/18,0,1)}}
+    });
+    if(!model.userData.blingBaseScale)model.userData.blingBaseScale=model.scale.clone();
+    const h=clamp((+profile.height||162)/162,.84,1.22),base=model.userData.blingBaseScale;model.scale.set(base.x,base.y*h,base.z);
+    model.updateMatrixWorld(true);
+  }
+  async function showBodyGlb(url,host,profile={},requireRig=false){
     if(!window.THREE||!THREE.GLTFLoader)return;
-    const headers={};if(config.token)headers['X-Bling-Token']=config.token;const response=await fetch((/^https?:/.test(url)?'':config.base)+url,{headers});if(!response.ok)throw Error('3D 网格读取失败');const buffer=await response.arrayBuffer();
-    new THREE.GLTFLoader().parse(buffer,'',gltf=>{host.innerHTML='';const scene=new THREE.Scene(),camera=new THREE.PerspectiveCamera(25,host.clientWidth/host.clientHeight,.01,100),renderer=new THREE.WebGLRenderer({antialias:true,alpha:true});renderer.setSize(host.clientWidth,host.clientHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,2));host.appendChild(renderer.domElement);scene.add(new THREE.HemisphereLight(0xcfdcff,0x302641,2));const key=new THREE.DirectionalLight(0xffffff,2.4);key.position.set(3,5,5);scene.add(key);const model=gltf.scene,box=new THREE.Box3().setFromObject(model),size=box.getSize(new THREE.Vector3()),center=box.getCenter(new THREE.Vector3());model.position.sub(center);scene.add(model);camera.position.set(0,size.y*.03,Math.max(size.x,size.y)*2.25);camera.lookAt(0,0,0);const controls=new THREE.OrbitControls(camera,renderer.domElement);controls.enablePan=false;controls.minDistance=camera.position.z*.75;controls.maxDistance=camera.position.z*1.15;controls.target.set(0,0,0);(function draw(){requestAnimationFrame(draw);controls.update();renderer.render(scene,camera)})()});
+    const headers={};if(config.token)headers['X-Bling-Token']=config.token;const target=url.startsWith('/objects/')?config.base+url:new URL(url,location.href).href;const response=await fetch(target,{headers});if(!response.ok)throw Error('带骨骼的 GLB 基础人体读取失败');const buffer=await response.arrayBuffer();
+    return new Promise((resolve,reject)=>new THREE.GLTFLoader().parse(buffer,'',gltf=>{host.innerHTML='';const scene=new THREE.Scene(),camera=new THREE.PerspectiveCamera(25,host.clientWidth/host.clientHeight,.01,100),renderer=new THREE.WebGLRenderer({antialias:true,alpha:true});renderer.setSize(host.clientWidth,host.clientHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,2));host.appendChild(renderer.domElement);scene.add(new THREE.HemisphereLight(0xcfdcff,0x302641,2));const key=new THREE.DirectionalLight(0xffffff,2.4);key.position.set(3,5,5);scene.add(key);const model=gltf.scene;let skinned=0,bones=0;model.traverse(node=>{if(node.isBone)bones++;if(!node.isMesh)return;if(node.isSkinnedMesh&&node.skeleton){skinned++;node.normalizeSkinWeights()}node.geometry.computeVertexNormals();node.material=new THREE.MeshStandardMaterial({color:0xc7b8d9,roughness:.82,metalness:0,skinning:!!node.isSkinnedMesh,side:THREE.DoubleSide})});if(requireRig&&(!skinned||!bones)){reject(Error('该 GLB 没有有效的 SkinnedMesh 或 Skeleton，已拒绝显示'));return}applyRiggedProfile(model,profile);const box=new THREE.Box3().setFromObject(model),size=box.getSize(new THREE.Vector3()),center=box.getCenter(new THREE.Vector3());model.position.sub(center);scene.add(model);camera.position.set(0,size.y*.03,Math.max(size.x,size.y)*2.25);camera.lookAt(0,0,0);const controls=new THREE.OrbitControls(camera,renderer.domElement);controls.enablePan=false;controls.minDistance=camera.position.z*.75;controls.maxDistance=camera.position.z*1.15;controls.target.set(0,0,0);window.__blingRiggedBody={model,apply:p=>applyRiggedProfile(model,p),skinnedMeshes:skinned,bones};(function draw(){requestAnimationFrame(draw);controls.update();renderer.render(scene,camera)})();resolve(window.__blingRiggedBody)},reject));
   }
   function scrubLegacySprites(){document.documentElement.style.removeProperty('--items-img');document.querySelectorAll('.itempic.p1,.itempic.p2,.itempic.p3,.itempic.p4,.itempic.p5,.itempic.p6,.itempic.p7,.itempic.p8').forEach(el=>{for(let i=1;i<=8;i++)el.classList.remove('p'+i);el.style.backgroundImage='none'})}
   migrate();window.BlingGeneration={config,request,generateTryOn,createBodyModel,uploadReference,deleteReference,ensureGarment};installBodyEditor();window.BlingGeneration.openBodyEditor=window.openBodyEditor3D;

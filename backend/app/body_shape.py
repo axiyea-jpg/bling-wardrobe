@@ -10,7 +10,6 @@ import scipy.sparse
 import scipy.sparse.linalg
 import trimesh
 from PIL import Image, ImageDraw
-from skimage import measure
 
 from .cloud_store import body_store, object_store
 from .schemas import BodyMeasurements, BodyModelResult
@@ -43,11 +42,11 @@ class AnthropometricBodyService:
 
     @property
     def available(self) -> bool:
-        return True
+        return self.official_available
 
     @property
     def backend_name(self) -> str:
-        return "official-local-rfe" if self.official_available else "continuous-implicit"
+        return "official-local-rfe" if self.official_available else "unavailable"
 
     @staticmethod
     def complete(m: BodyMeasurements, means: np.ndarray | None = None) -> dict[str, float]:
@@ -56,15 +55,20 @@ class AnthropometricBodyService:
         result = dict(raw)
         result["max_hip"] = raw["hip"]
         result["natural_waist"] = raw.get("natural_waist") or raw["waist"]
+        # Keep the released model's 19 measurements in their original meaning.
+        # Index 6 is neck -> shoulder -> elbow -> wrist, while index 13 is
+        # shoulder -> mid-hand (it is not the hand length).
         result["arm_length"] = raw["height"] * .445
         result["crotch_to_floor"] = raw.get("leg_length") or raw["height"] * .47
-        result["back_length"] = raw["height"] * .255
-        result["waist_rise"] = raw["height"] * .155
-        result["hand_length"] = raw["height"] * .105
+        result["back_length"] = raw["height"] * .445
+        # In the SPRING measurement table this is a full natural-waist rise,
+        # not a short vertical waist-to-crotch distance.
+        result["waist_rise"] = raw["hip"] * 1.02
+        result["hand_length"] = raw["height"] * .35
         result["neck"] = raw.get("neck") or 30 + max(0, bmi - 18) * .32
         result["upper_arm"] = raw.get("upper_arm") or 22 + max(0, bmi - 18) * .55
         result["wrist"] = raw.get("wrist") or raw["height"] * .095
-        result["leg_length"] = raw.get("leg_length") or raw["height"] * .58
+        result["leg_length"] = raw.get("leg_length") or raw["height"] * .72
         result["knee"] = raw.get("knee") or 31 + max(0, bmi - 18) * .35
         result["thigh"] = raw.get("thigh") or 43 + max(0, bmi - 18) * 1.05
         return {key: float(value) for key, value in result.items() if value is not None}
@@ -96,106 +100,29 @@ class AnthropometricBodyService:
         values = np.array([completed[key] for key in MEASUREMENT_ORDER], dtype=np.float64)
         values[0] = np.cbrt(values[0]) * 1000.0
         values[1:] *= 10.0
-        normalized = (values - model["mean"]) / np.where(model["std"] == 0, 1, model["std"])
-        physical = normalized * model["std"] + model["mean"]
         mask = model["mask"].T
         matrix = model["matrix"]
-        selected = np.stack([physical[row] for row in mask], axis=0)
+        # reshaper.py mapping_rfemat() first converts the normalized vector
+        # back to physical measurements, then selects the facet-local values.
+        # `values` is already in those physical units after completion.
+        selected = np.stack([values[row] for row in mask], axis=0)
         deformation = np.einsum("fij,fj->fi", matrix, selected).reshape(-1, 1)
         solved = model["solver"].solve(model["d2v"].T.dot(deformation))[: 12500 * 3]
         source = solved.reshape((-1, 3))
         source -= source.mean(axis=0)
-        # The released mesh is Z-up with Y as the left/right axis.
-        vertices = np.column_stack((source[:, 1], source[:, 2], source[:, 0]))
-        # The released template carries a fixed 140-degree yaw in its source frame.
-        yaw = np.deg2rad(140.0)
+        # The released mesh is Z-up. Preserve its native orientation; the old
+        # hard-coded 140 degree yaw mixed body width with depth and made the
+        # front view unnaturally broad.
+        vertices = np.column_stack((-source[:, 1], source[:, 2], source[:, 0]))
+        # Align the template's native diagonal pose to a true front-facing GLB
+        # so the first camera view matches the released demo.
+        yaw = np.deg2rad(45.0)
         vertices[:, [0, 2]] = np.column_stack((
-            vertices[:, 0]*np.cos(yaw) + vertices[:, 2]*np.sin(yaw),
-            -vertices[:, 0]*np.sin(yaw) + vertices[:, 2]*np.cos(yaw),
+            vertices[:, 0] * np.cos(yaw) + vertices[:, 2] * np.sin(yaw),
+            -vertices[:, 0] * np.sin(yaw) + vertices[:, 2] * np.cos(yaw),
         ))
         mesh = trimesh.Trimesh(vertices=vertices, faces=model["facets"], process=False)
         return self._normalize_height(mesh, completed["height"] / 100.0)
-
-    @staticmethod
-    def _smooth_min(a: np.ndarray, b: np.ndarray, k: float = 34.0) -> np.ndarray:
-        h = np.clip(.5 + .5 * (b - a) * k, 0.0, 1.0)
-        return b * (1 - h) + a * h - h * (1 - h) / k
-
-    @staticmethod
-    def _ellipsoid(x, y, z, center, radius):
-        rx, ry, rz = radius
-        q = np.sqrt(((x-center[0])/rx)**2 + ((y-center[1])/ry)**2 + ((z-center[2])/rz)**2) - 1.0
-        return q * min(radius)
-
-    def _procedural_mesh(self, completed: dict[str, float]) -> trimesh.Trimesh:
-        height = completed["height"] / 100.0
-        bmi = completed["weight"] / height**2
-        fat = np.clip((bmi - 18.5) / 20.0, -.15, .9)
-        bust_r = completed["bust"] / 100 / (2 * np.pi * .90)
-        waist_r = completed["waist"] / 100 / (2 * np.pi * .88)
-        hip_r = completed["hip"] / 100 / (2 * np.pi * .90)
-        thigh_r = completed["thigh"] / 100 / (2 * np.pi * .93)
-        knee_r = completed["knee"] / 100 / (2 * np.pi * .96)
-        shoulder_x = completed["shoulder"] / 200
-
-        xs = np.linspace(-.48, .48, 76)
-        ys = np.linspace(-.01, height + .01, 150)
-        zs = np.linspace(-.30, .30, 58)
-        x, y, z = np.meshgrid(xs, ys, zs, indexing="ij")
-        field = np.full(x.shape, 10.0, dtype=np.float32)
-
-        def add(center, radius, smooth=34.0):
-            nonlocal field
-            field = self._smooth_min(field, self._ellipsoid(x, y, z, center, radius), smooth)
-
-        add((0, .565*height, -.005), (hip_r*1.08, .105*height, hip_r*.73))
-        add((0, .655*height, 0), (waist_r*1.04, .095*height, waist_r*.78))
-        add((0, .735*height, .005), (bust_r*1.02, .105*height, bust_r*.76))
-        add((0, .795*height, 0), (shoulder_x, .055*height, bust_r*.67))
-        breast = max(.040, min(.075, bust_r*.38))
-        for side in (-1, 1):
-            add((side*bust_r*.43, .752*height, bust_r*.61), (breast*1.05, breast*.82, breast), 42)
-
-        neck_r = completed["neck"] / 100 / (2*np.pi)
-        add((0, .842*height, 0), (neck_r*1.02, .050*height, neck_r*.92))
-        add((0, .915*height, -.002), (.054*height, .071*height, .047*height))
-        add((0, .973*height, -.006), (.048*height, .040*height, .045*height))
-
-        leg_x = max(.075, hip_r*.47)
-        calf_r = knee_r*(1.0 + .20*fat)
-        ankle_r = max(.035, completed["wrist"] / 100 / (2*np.pi) * 1.55)
-        for side in (-1, 1):
-            sx = side*leg_x
-            add((sx, .485*height, 0), (thigh_r*1.02, .115*height, thigh_r*.88), 40)
-            add((sx, .390*height, 0), (thigh_r*.92, .115*height, thigh_r*.83), 40)
-            add((sx, .300*height, .002), (knee_r, .070*height, knee_r*.90), 42)
-            add((sx, .215*height, -.004), (calf_r, .100*height, calf_r*.90), 40)
-            add((sx, .105*height, 0), (ankle_r*1.10, .085*height, ankle_r), 40)
-            add((sx, .030*height, .032), (ankle_r*1.20, .032*height, ankle_r*1.75), 40)
-
-        upper_r = completed["upper_arm"] / 100 / (2*np.pi)
-        wrist_r = completed["wrist"] / 100 / (2*np.pi)
-        for side in (-1, 1):
-            shoulder = side*(shoulder_x*.92)
-            points = [
-                (shoulder, .785*height, 0, upper_r*1.12, .060*height),
-                (side*(shoulder_x+upper_r*.35), .725*height, 0, upper_r, .065*height),
-                (side*(shoulder_x+upper_r*.48), .650*height, 0, upper_r*.86, .060*height),
-                (side*(shoulder_x+upper_r*.52), .585*height, .003, wrist_r*1.32, .055*height),
-                (side*(shoulder_x+upper_r*.50), .525*height, .008, wrist_r*1.02, .050*height),
-            ]
-            for px, py, pz, pr, pry in points:
-                add((px, py, pz), (pr, pry, pr*.92), 42)
-            add((side*(shoulder_x+upper_r*.48), .475*height, .014), (wrist_r*1.18, .042*height, wrist_r*.72), 42)
-
-        spacing = (xs[1]-xs[0], ys[1]-ys[0], zs[1]-zs[0])
-        vertices, faces, _, _ = measure.marching_cubes(field, level=0, spacing=spacing)
-        vertices += np.array([xs[0], ys[0], zs[0]])
-        mesh = trimesh.Trimesh(vertices=vertices, faces=faces, process=True)
-        parts = mesh.split(only_watertight=False)
-        mesh = max(parts, key=lambda item: item.area) if parts else mesh
-        trimesh.smoothing.filter_taubin(mesh, lamb=.42, nu=-.36, iterations=7)
-        return self._normalize_height(mesh, height)
 
     @staticmethod
     def _normalize_height(mesh: trimesh.Trimesh, target_height: float) -> trimesh.Trimesh:
@@ -245,13 +172,10 @@ class AnthropometricBodyService:
     def generate(self, measurements: BodyMeasurements, uid: str = "local-owner") -> BodyModelResult:
         completed = self.complete(measurements)
         warning = []
-        try:
-            mesh = self._official_mesh(completed) if self.official_available else self._procedural_mesh(completed)
-            backend = self.backend_name
-        except Exception as exc:
-            mesh = self._procedural_mesh(completed)
-            backend = "continuous-implicit"
-            warning.append(f"官方人体回归模型加载失败，已使用连续网格生成器：{exc}")
+        if not self.official_available:
+            raise RuntimeError("官方人体回归模型文件不完整，已停止生成，避免显示错误的程序化人体")
+        mesh = self._official_mesh(completed)
+        backend = self.backend_name
         if not np.isfinite(mesh.vertices).all() or len(mesh.vertices) < 1000:
             raise ValueError("Generated body mesh is invalid")
 

@@ -17,7 +17,15 @@ The proprietary MPI Body Visualizer application and its restricted assets are no
 - Code license: MIT
 - Use: anthropometric measurement completion and local-RFE full-mesh reconstruction adapter.
 
-The production container downloads the upstream released female local-RFE runtime weights during its build. The weights are not committed to this repository. Their training-data provenance must still be reviewed before commercial distribution.
+The adapter remains available for research comparison, but its reconstructed mesh is no longer displayed by the interactive Three.js body editor.
+
+## Khronos glTF Sample Assets — CesiumMan
+
+- Source: https://github.com/KhronosGroup/glTF-Sample-Assets/tree/main/Models/CesiumMan
+- License: Creative Commons Attribution 4.0 International
+- Use: temporary local SkinnedMesh/Skeleton GLB used to validate the rigged-body loading and smooth bone-chain deformation pipeline.
+
+This is a replaceable technical base-model placeholder, not the final female visual asset.
 
 ## Wardrobe
 
@@ -28,3 +36,17 @@ The production container downloads the upstream released female local-RFE runtim
 ## OpenAI image generation
 
 Garment reconstruction and modeled outfit images can be generated through the OpenAI API when the private backend is configured. No API key is shipped to the browser.
+
+## Local garment image stack
+
+- rembg — MIT — optional local foreground segmentation: https://github.com/danielgatis/rembg
+- OpenCV — Apache-2.0 — mask cleanup and crop support: https://opencv.org/
+- Hugging Face Transformers and Diffusers — Apache-2.0 — optional local model adapters.
+
+Individual model weights have their own licenses and provenance requirements and are not redistributed by this repository.
+
+## Three.js
+
+- Source: https://github.com/mrdoob/three.js (runtime version r128)
+- License: MIT
+- Use: local GLB viewer, orbit controls and GLTF loader for the existing 3D body-model page.

@@ -9,6 +9,7 @@ from threading import RLock
 from typing import Any
 
 from .settings import settings
+from .sqlite_store import SqliteUserStore
 
 
 class UserStore:
@@ -86,7 +87,7 @@ class ObjectStore:
             url = blob.generate_signed_url(version="v4", expiration=timedelta(minutes=settings.signed_url_minutes), method="PUT", content_type=content_type)
             return {"object_name": object_name, "upload_url": url, "method": "PUT", "headers": {"Content-Type": content_type}}
         token = secrets.token_urlsafe(24)
-        base = settings.public_base_url.rstrip("/") or "http://testserver"
+        base = settings.public_base_url.rstrip("/") or settings.local_origin.rstrip("/") or "http://testserver"
         return {"object_name": object_name, "upload_token": token, "upload_url": f"{base}/api/import/jobs/{job_id}/files/{file_id}?upload_token={token}", "method": "PUT", "headers": {"Content-Type": content_type}}
 
     def local_path(self, object_name: str) -> Path:
@@ -128,7 +129,8 @@ class ObjectStore:
             return ""
         if self.cloud:
             return self.bucket.blob(object_name).generate_signed_url(version="v4", expiration=timedelta(minutes=settings.signed_url_minutes), method="GET")
-        return f"{settings.public_base_url.rstrip('/')}/objects/{object_name}" if settings.public_base_url else f"/objects/{object_name}"
+        base = settings.public_base_url.rstrip("/") or settings.local_origin.rstrip("/")
+        return f"{base}/objects/{object_name}" if base else f"/objects/{object_name}"
 
     def delete(self, object_name: str) -> None:
         if not object_name:
@@ -139,8 +141,9 @@ class ObjectStore:
             self.local_path(object_name).unlink(missing_ok=True)
 
 
-garment_store = UserStore("garments")
-job_store = UserStore("jobs")
-reference_store = UserStore("references")
-body_store = UserStore("body_models")
+Store = UserStore if settings.firestore_project_id else SqliteUserStore
+garment_store = Store("garments")
+job_store = Store("jobs")
+reference_store = Store("references")
+body_store = Store("body_models")
 object_store = ObjectStore()
